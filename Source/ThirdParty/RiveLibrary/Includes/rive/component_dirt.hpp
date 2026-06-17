@@ -1,7 +1,7 @@
 #ifndef _RIVE_DIRTY_FLAGS_HPP_
 #define _RIVE_DIRTY_FLAGS_HPP_
 
-#include "rive/enum_bitset.hpp"
+#include "rive/enums.hpp"
 
 namespace rive
 {
@@ -65,9 +65,19 @@ enum class ComponentDirt : unsigned short
     /// Used by data binds to track the value has changed.
     Bindings = 1 << 12,
 
+    /// Set when components deformed by an NSlicer need to recalculate
+    /// their render paths, mesh, points, etc.
+    NSlicer = 1 << 13,
+
+    /// Set when a ScriptedObject needs to call update on the scripted
+    /// interface.
+    ScriptUpdate = 1 << 14,
+
+    /// Clipping needs to be recalculated
+    Clipping = 1 << 15,
+
     /// All dirty. Every flag (apart from Collapsed) is set.
     Filthy = 0xFFFE
 };
-RIVE_MAKE_ENUM_BITSET(ComponentDirt)
 } // namespace rive
 #endif

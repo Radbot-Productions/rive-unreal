@@ -200,33 +200,32 @@ bool FRiveStateMachine::PointerDown(const FGeometry& InGeometry,
 {
     bStateMachineSettled = false;
     float ScaleFactor = 1.0f;
+    if (InDescriptor.FitType == ERiveFitType::Layout)
+    {
+        ScaleFactor = InDescriptor.ScaleFactor;
+        if (InDescriptor.bScaleLayoutByDPI)
+            ScaleFactor *= DPI;
+    }
 
     FVector2D Position = USlateBlueprintLibrary::AbsoluteToLocal(
         InGeometry,
         InMouseEvent.GetScreenSpacePosition());
     FVector2D ScreenBounds = InGeometry.GetLocalSize();
 
-    if (InDescriptor.FitType == ERiveFitType::Layout)
-    {
-        ScaleFactor = InDescriptor.ScaleFactor;
-        if (InDescriptor.bScaleLayoutByDPI)
-            ScaleFactor *= DPI;
-        Position *= DPI;
-        ScreenBounds *= DPI;
-    }
-
     FRiveRenderer* Renderer = IRiveRendererModule::Get().GetRenderer();
     check(Renderer);
-    auto CommandServer = Renderer->GetCommandServerUnsafe();
-    return CommandServer->pointerDownSynchronized(
-               NativeStateMachineHandle,
-               {.fit = RiveFitTypeToFit(InDescriptor.FitType),
-                .alignment = RiveAlignementToAlignment(InDescriptor.Alignment),
-                .screenBounds = {static_cast<float>(ScreenBounds.X),
-                                 static_cast<float>(ScreenBounds.Y)},
-                .position = {static_cast<float>(Position.X),
-                             static_cast<float>(Position.Y)},
-                .scaleFactor = ScaleFactor}) != rive::HitResult::none;
+    auto& CommandBuilder = Renderer->GetCommandBuilder();
+    CommandBuilder.StateMachineMouseDown(
+        NativeStateMachineHandle,
+        {.fit = RiveFitTypeToFit(InDescriptor.FitType),
+         .alignment = RiveAlignementToAlignment(InDescriptor.Alignment),
+         .screenBounds = {static_cast<float>(ScreenBounds.X),
+                          static_cast<float>(ScreenBounds.Y)},
+         .position = {static_cast<float>(Position.X),
+                      static_cast<float>(Position.Y)},
+         .scaleFactor = ScaleFactor});
+
+    return false;
 }
 
 bool FRiveStateMachine::PointerMove(const FGeometry& InGeometry,
@@ -239,22 +238,20 @@ bool FRiveStateMachine::PointerMove(const FGeometry& InGeometry,
     {
         return false;
     }
+
     bStateMachineSettled = false;
-
-    FVector2D Position = USlateBlueprintLibrary::AbsoluteToLocal(
-        InGeometry,
-        InMouseEvent.GetScreenSpacePosition());
-    FVector2D ScreenBounds = InGeometry.GetLocalSize();
-
     float ScaleFactor = 1.0f;
     if (InDescriptor.FitType == ERiveFitType::Layout)
     {
         ScaleFactor = InDescriptor.ScaleFactor;
         if (InDescriptor.bScaleLayoutByDPI)
             ScaleFactor *= DPI;
-        Position *= DPI;
-        ScreenBounds *= DPI;
     }
+
+    FVector2D Position = USlateBlueprintLibrary::AbsoluteToLocal(
+        InGeometry,
+        InMouseEvent.GetScreenSpacePosition());
+    FVector2D ScreenBounds = InGeometry.GetLocalSize();
 
     FRiveRenderer* Renderer = IRiveRendererModule::Get().GetRenderer();
     check(Renderer);
@@ -278,33 +275,33 @@ bool FRiveStateMachine::PointerUp(const FGeometry& InGeometry,
                                   float DPI)
 {
     bStateMachineSettled = false;
-    FVector2D Position = USlateBlueprintLibrary::AbsoluteToLocal(
-        InGeometry,
-        InMouseEvent.GetScreenSpacePosition());
-    FVector2D ScreenBounds = InGeometry.GetLocalSize();
-
     float ScaleFactor = 1.0f;
     if (InDescriptor.FitType == ERiveFitType::Layout)
     {
         ScaleFactor = InDescriptor.ScaleFactor;
         if (InDescriptor.bScaleLayoutByDPI)
             ScaleFactor *= DPI;
-        Position *= DPI;
-        ScreenBounds *= DPI;
     }
+
+    FVector2D Position = USlateBlueprintLibrary::AbsoluteToLocal(
+        InGeometry,
+        InMouseEvent.GetScreenSpacePosition());
+    FVector2D ScreenBounds = InGeometry.GetLocalSize();
 
     FRiveRenderer* Renderer = IRiveRendererModule::Get().GetRenderer();
     check(Renderer);
-    auto CommandServer = Renderer->GetCommandServerUnsafe();
-    return CommandServer->pointerUpSynchronized(
-               NativeStateMachineHandle,
-               {.fit = RiveFitTypeToFit(InDescriptor.FitType),
-                .alignment = RiveAlignementToAlignment(InDescriptor.Alignment),
-                .screenBounds = {static_cast<float>(ScreenBounds.X),
-                                 static_cast<float>(ScreenBounds.Y)},
-                .position = {static_cast<float>(Position.X),
-                             static_cast<float>(Position.Y)},
-                .scaleFactor = ScaleFactor}) != rive::HitResult::none;
+    auto& CommandBuilder = Renderer->GetCommandBuilder();
+    CommandBuilder.StateMachineMouseUp(
+        NativeStateMachineHandle,
+        {.fit = RiveFitTypeToFit(InDescriptor.FitType),
+         .alignment = RiveAlignementToAlignment(InDescriptor.Alignment),
+         .screenBounds = {static_cast<float>(ScreenBounds.X),
+                          static_cast<float>(ScreenBounds.Y)},
+         .position = {static_cast<float>(Position.X),
+                      static_cast<float>(Position.Y)},
+         .scaleFactor = ScaleFactor});
+
+    return false;
 }
 
 bool FRiveStateMachine::PointerExit(const FGeometry& InGeometry,

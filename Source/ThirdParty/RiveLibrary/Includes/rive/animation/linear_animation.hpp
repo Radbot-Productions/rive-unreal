@@ -33,7 +33,8 @@ public:
     float startSeconds() const;
     float endSeconds() const;
 
-    /// Returns the start time/ end time of the animation in seconds, considering speed
+    /// Returns the start time/ end time of the animation in seconds,
+    /// considering speed
     float startTime() const;
     float startTime(float multiplier) const;
     float endTime() const;
@@ -42,6 +43,9 @@ public:
     /// work area start/end, speed, looping).
     float globalToLocalSeconds(float seconds) const;
 
+    // Returns a list of only the KeyedObjects that were validated during
+    // onAddedDirty. This is not guaranteed to be the same as the list in the
+    // exported riv.
     const KeyedObject* getObject(size_t index) const
     {
         if (index < m_KeyedObjects.size())

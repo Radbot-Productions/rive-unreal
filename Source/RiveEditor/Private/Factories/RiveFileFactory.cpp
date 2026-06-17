@@ -26,7 +26,6 @@
 #include "K2Node_CallFunction.h"
 #include "K2Node_FunctionEntry.h"
 #include "FileHelpers.h"
-#include "Misc/EngineVersionComparison.h"
 
 extern UNREALED_API class UEditorEngine* GEditor;
 
@@ -106,15 +105,8 @@ static UEnum* GenerateBlueprintForEnum(const FString& FolderPath,
             TPair<FName, int64>{EnumName + TEXT("::") + Value, Index++});
     }
     Enum->CppType = EnumName;
-#if UE_VERSION_OLDER_THAN(5, 8, 0)
     Enum->SetEnums(EnumsValues, UEnum::ECppForm::Namespaced);
-#else
-    Enum->SetEnums(EnumsValues,
-                   UEnum::ECppForm::Namespaced,
-                   UEnum::EUnderlyingType::int8,
-                   EEnumFlags::None,
-                   UEnum::EAddMaxKeyIfMissing::Yes);
-#endif
+
     // Notify the asset registry
     if (bIsNewEnum)
     {

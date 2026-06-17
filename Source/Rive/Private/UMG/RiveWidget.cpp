@@ -62,18 +62,15 @@ FReply URiveWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry,
         return FReply::Unhandled();
     }
 
-    if (!IsValid(RiveArtboard))
+    if (IsValid(RiveArtboard))
     {
-        return FReply::Unhandled();
+        RiveArtboard->PointerDown(InGeometry,
+                                  RiveDescriptor,
+                                  InMouseEvent,
+                                  UWidgetLayoutLibrary::GetViewportScale(this));
     }
 
-    return RiveArtboard->PointerDown(
-               InGeometry,
-               RiveDescriptor,
-               InMouseEvent,
-               UWidgetLayoutLibrary::GetViewportScale(this))
-               ? FReply::Handled()
-               : FReply::Unhandled();
+    return FReply::Handled();
 }
 
 FReply URiveWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry,
@@ -85,17 +82,15 @@ FReply URiveWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry,
         return FReply::Unhandled();
     }
 
-    if (!IsValid(RiveArtboard))
+    if (IsValid(RiveArtboard))
     {
-        return FReply::Unhandled();
+        RiveArtboard->PointerUp(InGeometry,
+                                RiveDescriptor,
+                                InMouseEvent,
+                                UWidgetLayoutLibrary::GetViewportScale(this));
     }
 
-    return RiveArtboard->PointerUp(InGeometry,
-                                   RiveDescriptor,
-                                   InMouseEvent,
-                                   UWidgetLayoutLibrary::GetViewportScale(this))
-               ? FReply::Handled()
-               : FReply::Unhandled();
+    return FReply::Handled();
 }
 
 FReply URiveWidget::NativeOnMouseMove(const FGeometry& InGeometry,
@@ -293,15 +288,21 @@ void URiveWidget::PostEditChangeChainProperty(
                 RiveArtboard->SetAudioEngine(RiveAudioEngine);
             }
 
-            RiveWidget->SetArtboard(RiveArtboard);
-            RiveWidget->SetRiveDescriptor(RiveDescriptor);
+            if (RiveWidget.IsValid())
+            {
+                RiveWidget->SetArtboard(RiveArtboard);
+                RiveWidget->SetRiveDescriptor(RiveDescriptor);
+            }
         }
     }
 
     if (PropertyName == GET_MEMBER_NAME_CHECKED(FRiveDescriptor, Alignment) ||
         PropertyName == GET_MEMBER_NAME_CHECKED(FRiveDescriptor, FitType))
     {
-        RiveWidget->SetRiveDescriptor(RiveDescriptor);
+        if (RiveWidget.IsValid())
+        {
+            RiveWidget->SetRiveDescriptor(RiveDescriptor);
+        }
     }
 }
 #endif
@@ -354,8 +355,6 @@ void URiveWidget::SetRiveDescriptor(const FRiveDescriptor& newDescriptor)
         IsChangingFromLayout = true;
 
     RiveDescriptor = newDescriptor;
-    // reset artboard since we want to re create it.
-    RiveArtboard = nullptr;
 
     Setup();
 }

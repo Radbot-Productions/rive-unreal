@@ -9,7 +9,6 @@
 #include "Logs/RiveLog.h"
 #include "RenderUtils.h"
 #include "Rive/RiveTexture.h"
-#include "Misc/EngineVersionComparison.h"
 
 FRiveTextureResource::FRiveTextureResource(URiveTexture* Owner) :
     RiveTexture(Owner)
@@ -33,18 +32,11 @@ void FRiveTextureResource::InitRHI(FRHICommandListBase& RHICmdList)
 
 void FRiveTextureResource::ReleaseRHI()
 {
-    check(IsRunningRHIInTaskThread());
     if (RiveTexture)
     {
-#if UE_VERSION_OLDER_THAN(5, 7, 0)
         RHIUpdateTextureReference(
             RiveTexture->TextureReference.TextureReferenceRHI,
             nullptr);
-#else
-        FRHICommandListImmediate::Get().UpdateTextureReference(
-            RiveTexture->TextureReference.TextureReferenceRHI,
-            nullptr);
-#endif
     }
 
     FTextureResource::ReleaseRHI();

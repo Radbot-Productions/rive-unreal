@@ -1,7 +1,7 @@
 {
     "FileVersion": 3,
-    "Version": 10,
-    "VersionName": "0.4.22",
+    "Version": 15,
+    "VersionName": "0.4.24-gh",
     "FriendlyName": "Rive",
     "Description": "An Unreal Engine runtime library for Rive.",
     "Category": "Rive",

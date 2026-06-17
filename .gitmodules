@@ -1,3 +1,5 @@
 [submodule "submodules/rive-runtime"]
 	path = submodules/rive-runtime
-	url = git@github.com:rive-app/rive-runtime.git
+	url = https://github.com/Radbot-Productions/rive-runtime.git
+	branch = main
+	ignore = dirty

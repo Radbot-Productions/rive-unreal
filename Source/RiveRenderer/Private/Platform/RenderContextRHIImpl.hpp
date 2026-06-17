@@ -16,7 +16,6 @@ THIRD_PARTY_INCLUDES_START
 #include "rive/renderer/rive_render_image.hpp"
 #include "rive/renderer/buffer_ring.hpp"
 #include "rive/renderer/render_context_impl.hpp"
-#include "rive/gpu_texture_format.hpp"
 THIRD_PARTY_INCLUDES_END
 
 class UTexture;
@@ -412,12 +411,7 @@ public:
         uint32_t width,
         uint32_t height,
         uint32_t mipLevelCount,
-        rive::GPUTextureFormat format,
-        const uint8_t imageDataRGBA[],
-        uint8_t blockWidth = 1,
-        uint8_t blockHeight = 1,
-        bool srgb = false,
-        bool generateRemainingMips = false) override;
+        const uint8_t imageDataRGBA[]) override;
 
     virtual void resizeFlushUniformBuffer(size_t sizeInBytes) override;
     virtual void resizeImageDrawUniformBuffer(size_t sizeInBytes) override;

@@ -49,6 +49,8 @@
 #define RIVE_BUILD_FOR_OSX
 #endif
 
+#define RIVE_NO_STD_SYSTEM
+
 #endif
 
 // We really like these headers, so we include them all the time.
@@ -62,18 +64,18 @@
 
 // Annotations to assert unreachable control flow.
 #if defined(__GNUC__) || defined(__clang__)
-#define RIVE_UNREACHABLE                                                                           \
-    assert(!(bool)"unreachable reached");                                                          \
+#define RIVE_UNREACHABLE                                                       \
+    assert(!(bool)"unreachable reached");                                      \
     __builtin_unreachable
 #elif _MSC_VER
-#define RIVE_UNREACHABLE()                                                                         \
-    assert(!(bool)"unreachable reached");                                                          \
+#define RIVE_UNREACHABLE()                                                     \
+    assert(!(bool)"unreachable reached");                                      \
     __assume(0)
 #else
-#define RIVE_UNREACHABLE()                                                                         \
-    do                                                                                             \
-    {                                                                                              \
-        assert(!(bool)"unreachable reached");                                                      \
+#define RIVE_UNREACHABLE()                                                     \
+    do                                                                         \
+    {                                                                          \
+        assert(!(bool)"unreachable reached");                                  \
     } while (0)
 #endif
 
@@ -98,7 +100,8 @@
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
-// Recommended in https://clang.llvm.org/docs/LanguageExtensions.html#feature-checking-macros
+// Recommended in
+// https://clang.llvm.org/docs/LanguageExtensions.html#feature-checking-macros
 #ifndef __has_builtin
 #define __has_builtin(x) 0
 #endif
@@ -117,14 +120,5 @@
 #else
 #define RIVE_DEBUG_CODE(CODE)
 #endif
-
-// Backports of later stl functions.
-namespace rivestd
-{
-template <class T, class... Args> std::unique_ptr<T> make_unique(Args&&... args)
-{
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
-} // namespace rivestd
 
 #endif // rive_types

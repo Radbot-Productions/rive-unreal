@@ -12,8 +12,8 @@ protected:
 public:
     static const uint16_t typeKey = 2;
 
-    /// Helper to quickly determine if a core object extends another without RTTI
-    /// at runtime.
+    /// Helper to quickly determine if a core object extends another without
+    /// RTTI at runtime.
     bool isTypeOf(uint16_t typeKey) const override
     {
         switch (typeKey)
@@ -35,8 +35,16 @@ public:
     static const uint16_t xArtboardPropertyKey = 9;
     static const uint16_t yPropertyKey = 14;
     static const uint16_t yArtboardPropertyKey = 10;
+    static const uint16_t computedLocalXPropertyKey = 806;
+    static const uint16_t computedLocalYPropertyKey = 807;
+    static const uint16_t computedWorldXPropertyKey = 808;
+    static const uint16_t computedWorldYPropertyKey = 809;
+    static const uint16_t computedRootXPropertyKey = 864;
+    static const uint16_t computedRootYPropertyKey = 865;
+    static const uint16_t computedWidthPropertyKey = 810;
+    static const uint16_t computedHeightPropertyKey = 811;
 
-private:
+protected:
     float m_X = 0.0f;
     float m_Y = 0.0f;
 
@@ -61,6 +69,102 @@ public:
         }
         m_Y = value;
         yChanged();
+    }
+
+    virtual void setComputedLocalX(float value) = 0;
+    virtual float computedLocalX() = 0;
+    void computedLocalX(float value)
+    {
+        if (computedLocalX() == value)
+        {
+            return;
+        }
+        setComputedLocalX(value);
+        computedLocalXChanged();
+    }
+
+    virtual void setComputedLocalY(float value) = 0;
+    virtual float computedLocalY() = 0;
+    void computedLocalY(float value)
+    {
+        if (computedLocalY() == value)
+        {
+            return;
+        }
+        setComputedLocalY(value);
+        computedLocalYChanged();
+    }
+
+    virtual void setComputedWorldX(float value) = 0;
+    virtual float computedWorldX() = 0;
+    void computedWorldX(float value)
+    {
+        if (computedWorldX() == value)
+        {
+            return;
+        }
+        setComputedWorldX(value);
+        computedWorldXChanged();
+    }
+
+    virtual void setComputedWorldY(float value) = 0;
+    virtual float computedWorldY() = 0;
+    void computedWorldY(float value)
+    {
+        if (computedWorldY() == value)
+        {
+            return;
+        }
+        setComputedWorldY(value);
+        computedWorldYChanged();
+    }
+
+    virtual void setComputedRootX(float value) = 0;
+    virtual float computedRootX() = 0;
+    void computedRootX(float value)
+    {
+        if (computedRootX() == value)
+        {
+            return;
+        }
+        setComputedRootX(value);
+        computedRootXChanged();
+    }
+
+    virtual void setComputedRootY(float value) = 0;
+    virtual float computedRootY() = 0;
+    void computedRootY(float value)
+    {
+        if (computedRootY() == value)
+        {
+            return;
+        }
+        setComputedRootY(value);
+        computedRootYChanged();
+    }
+
+    virtual void setComputedWidth(float value) = 0;
+    virtual float computedWidth() = 0;
+    void computedWidth(float value)
+    {
+        if (computedWidth() == value)
+        {
+            return;
+        }
+        setComputedWidth(value);
+        computedWidthChanged();
+    }
+
+    virtual void setComputedHeight(float value) = 0;
+    virtual float computedHeight() = 0;
+    void computedHeight(float value)
+    {
+        if (computedHeight() == value)
+        {
+            return;
+        }
+        setComputedHeight(value);
+        computedHeightChanged();
     }
 
     Core* clone() const override;
@@ -88,6 +192,14 @@ public:
 protected:
     virtual void xChanged() {}
     virtual void yChanged() {}
+    virtual void computedLocalXChanged() {}
+    virtual void computedLocalYChanged() {}
+    virtual void computedWorldXChanged() {}
+    virtual void computedWorldYChanged() {}
+    virtual void computedRootXChanged() {}
+    virtual void computedRootYChanged() {}
+    virtual void computedWidthChanged() {}
+    virtual void computedHeightChanged() {}
 };
 } // namespace rive
 

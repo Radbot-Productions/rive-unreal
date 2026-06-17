@@ -87,8 +87,8 @@ static const FString NameForDrawType(rive::gpu::DrawType InDrawType)
             return TEXT("msaaMidpointFanPathsCover");
         case rive::gpu::DrawType::interiorTriangulation:
             return TEXT("interiorTriangulation");
-        case rive::gpu::DrawType::clipReset:
-            return TEXT("clipReset");
+        case rive::gpu::DrawType::msaaStencilClipReset:
+            return TEXT("msaaStencilClipReset");
         case rive::gpu::DrawType::atlasBlit:
             return TEXT("atlasBlit");
         case rive::gpu::DrawType::imageRect:
@@ -102,33 +102,6 @@ static const FString NameForDrawType(rive::gpu::DrawType InDrawType)
     };
 
     return TEXT("Unkown");
-}
-
-static const EPixelFormat PixelFormatForGPUTextureFormat(
-    rive::GPUTextureFormat Format)
-{
-    // Unreal supports
-    // BC Version:
-    // PF_BC4, PF_BC5, PF_BC6H and PF_BC7
-    // ASTC Versions:
-    // PF_ASTC_4x4, PF_ASTC_6x6, PF_ASTC_8x8, PF_ASTC_10x10, PF_ASTC_12x12,
-    // ETC2 Versions:
-    // PF_ETC2_RGB, PF_ETC2_RGBA
-    switch (Format)
-    {
-        case rive::GPUTextureFormat::bc1:
-        case rive::GPUTextureFormat::bc2:
-        case rive::GPUTextureFormat::bc3:
-        case rive::GPUTextureFormat::bc7:
-            return EPixelFormat::PF_BC7;
-        case rive::GPUTextureFormat::astc:
-            return EPixelFormat::PF_ASTC_6x6;
-        case rive::GPUTextureFormat::etc2:
-            return EPixelFormat::PF_ETC2_RGBA;
-        case rive::GPUTextureFormat::rgba32:
-        default:
-            return EPixelFormat::PF_R8G8B8A8;
-    }
 }
 
 template <typename DataType, size_t size>
@@ -1386,7 +1359,6 @@ rcp<Texture> RenderContextRHIImpl::platformDecodeImageTexture(
     std::unique_ptr<Bitmap> bitmap =
         std::make_unique<Bitmap>(ImageWrapper->GetWidth(),
                                  ImageWrapper->GetHeight(),
-                                 UncompressedRGBA.Num(),
                                  Bitmap::PixelFormat::RGBA,
                                  std::move(data));
 
@@ -1395,7 +1367,6 @@ rcp<Texture> RenderContextRHIImpl::platformDecodeImageTexture(
     return makeImageTexture(bitmap->width(),
                             bitmap->height(),
                             1,
-                            rive::GPUTextureFormat::rgba32,
                             bitmap->bytes());
 }
 
@@ -1403,18 +1374,13 @@ rive::rcp<rive::gpu::Texture> RenderContextRHIImpl::makeImageTexture(
     uint32_t width,
     uint32_t height,
     uint32_t mipLevelCount,
-    GPUTextureFormat format,
-    const uint8_t imageDataRGBA[],
-    uint8_t /*blockWidth*/,
-    uint8_t /*blockHeight*/,
-    bool /*srgb*/,
-    bool /*generateRemainingMips*/)
+    const uint8_t imageDataRGBA[])
 {
     return make_rcp<TextureRHIImpl>(width,
                                     height,
                                     mipLevelCount,
                                     imageDataRGBA,
-                                    PixelFormatForGPUTextureFormat(format));
+                                    EPixelFormat::PF_R8G8B8A8);
 }
 
 void RenderContextRHIImpl::resizeFlushUniformBuffer(size_t sizeInBytes)
@@ -1681,15 +1647,13 @@ void RenderContextRHIImpl::flush(const FlushDescriptor& desc)
 {
     check(IsInRenderingThread());
 
-    {
-        static const bool callOnce = [interlockMode = desc.interlockMode]() {
-            UE_LOG(LogRiveRenderer,
-                   Display,
-                   TEXT("RenderContextRHIImpl::flush Interlock: %s"),
-                   StrForInterlock(interlockMode))
-            return true;
-        }();
-    }
+    static std::once_flag onceFlag;
+    std::call_once(onceFlag, [interlockMode = desc.interlockMode]() {
+        UE_LOG(LogRiveRenderer,
+               Display,
+               TEXT("RenderContextRHIImpl::flush Interlock: %s"),
+               StrForInterlock(interlockMode))
+    });
 
     auto renderTarget = static_cast<RenderTargetRHI*>(desc.renderTarget);
     check(renderTarget);
@@ -1703,7 +1667,7 @@ void RenderContextRHIImpl::flush(const FlushDescriptor& desc)
     auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
     {
-        SCOPED_GPU_STAT(GraphBuilder.RHICmdList, STAT_RiveFlush);
+        SCOPED_GPU_STAT(STAT_RiveFlush);
         RDG_GPU_STAT_SCOPE(GraphBuilder, STAT_RiveFlush);
 
         auto targetTexture = renderTarget->targetTexture(GraphBuilder);
@@ -2270,8 +2234,9 @@ void RenderContextRHIImpl::flush(const FlushDescriptor& desc)
                          FixedFunctionColorOutput =
                              desc.fixedFunctionColorOutput](
                             FRHICommandListImmediate& RHICmdList) {
-                            SCOPED_GPU_STAT(RHICmdList,
-                                            STAT_RiveFlush_RiveFlushRenderPass);
+                            RDG_GPU_STAT_SCOPE(
+                                GraphBuilder,
+                                STAT_RiveFlush_RiveFlushRenderPass);
 
                             for (const DrawBatch* batch =
                                      const_cast<DrawBatch*>(&RenderPassStart);
@@ -2388,7 +2353,7 @@ void RenderContextRHIImpl::flush(const FlushDescriptor& desc)
                                             PassParameters);
                                     }
                                     break;
-                                    case DrawType::clipReset:
+                                    case DrawType::msaaStencilClipReset:
                                     {
                                         CommonPassParameters
                                             .VertexDeclarationRHI =
@@ -2823,7 +2788,7 @@ void RenderContextRHIImpl::flush(const FlushDescriptor& desc)
                     case DrawType::msaaMidpointFanPathsStencil:
                     case DrawType::msaaMidpointFanPathsCover:
                     case DrawType::msaaOuterCubics:
-                    case DrawType::clipReset:
+                    case DrawType::msaaStencilClipReset:
                         RIVE_UNREACHABLE();
                 }
             }
@@ -3121,7 +3086,7 @@ void RenderContextRHIImpl::flush(const FlushDescriptor& desc)
                     case DrawType::msaaMidpointFanPathsStencil:
                     case DrawType::msaaMidpointFanPathsCover:
                     case DrawType::msaaOuterCubics:
-                    case DrawType::clipReset:
+                    case DrawType::msaaStencilClipReset:
                         RIVE_UNREACHABLE();
                 }
             }

@@ -5,16 +5,9 @@
 namespace rive
 {
 class Artboard;
-class TransitionPropertyArtboardComparator : public TransitionPropertyArtboardComparatorBase
-{
-public:
-    bool compare(TransitionComparator* comparand,
-                 TransitionConditionOp operation,
-                 const StateMachineInstance* stateMachineInstance) override;
-
-private:
-    float propertyValue(const StateMachineInstance* stateMachineInstance);
-};
+class TransitionPropertyArtboardComparator
+    : public TransitionPropertyArtboardComparatorBase
+{};
 } // namespace rive
 
 #endif

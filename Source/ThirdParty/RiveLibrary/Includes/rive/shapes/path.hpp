@@ -11,6 +11,7 @@ namespace rive
 {
 class Shape;
 class PathVertex;
+class RenderPathDeformer;
 
 #ifdef ENABLE_QUERY_FLAT_VERTICES
 /// Optionally compiled in for tools that need to compute per frame world
@@ -42,8 +43,14 @@ protected:
     bool m_deferredPathDirt = false;
     PathFlags m_pathFlags = PathFlags::none;
     RawPath m_rawPath;
+    RenderPathDeformer* deformer() const;
+    void isHoleChanged() override;
 
 public:
+    static float computeIdealControlPointDistance(const Vec2D& toPrev,
+                                                  const Vec2D& toNext,
+                                                  float radius);
+
     Shape* shape() const { return m_Shape; }
     StatusCode onAddedClean(CoreContext* context) override;
     void buildDependencies() override;
@@ -57,6 +64,7 @@ public:
 
     bool canDeferPathUpdate();
     void addVertex(PathVertex* vertex);
+    void popVertex();
 
     virtual void markPathDirty(bool sendToLayout = true);
     virtual bool isPathClosed() const { return true; }
@@ -71,6 +79,7 @@ public:
 #endif
 
     void buildPath(RawPath&) const;
+    AABB localBounds() const override;
 };
 } // namespace rive
 

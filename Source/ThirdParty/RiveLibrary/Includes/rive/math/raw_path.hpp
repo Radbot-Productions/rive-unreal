@@ -33,9 +33,7 @@ public:
 #ifdef DEBUG
     void printCode() const;
 #endif
-#ifdef WITH_RIVE_TOOLS
     AABB preciseBounds() const;
-#endif
     size_t countMoveTos() const;
 
     void move(Vec2D);
@@ -43,6 +41,7 @@ public:
     void quad(Vec2D, Vec2D);
     void cubic(Vec2D, Vec2D, Vec2D);
     void close();
+    bool isClosed() const;
 
     void swap(RawPath&);
 
@@ -72,11 +71,15 @@ public:
 
     void moveTo(float x, float y) { move({x, y}); }
     void lineTo(float x, float y) { line({x, y}); }
-    void quadTo(float x, float y, float x1, float y1) { quad({x, y}, {x1, y1}); }
+    void quadTo(float x, float y, float x1, float y1)
+    {
+        quad({x, y}, {x1, y1});
+    }
     void cubicTo(float x, float y, float x1, float y1, float x2, float y2)
     {
         cubic({x, y}, {x1, y1}, {x2, y2});
     }
+    void quadToCubic(float x, float y, float x1, float y1);
 
     // Helpers for adding new contours
 
@@ -92,7 +95,9 @@ public:
     {
     public:
         Iter() = default;
-        Iter(const PathVerb* verbs, const Vec2D* pts) : m_verbs(verbs), m_pts(pts) {}
+        Iter(const PathVerb* verbs, const Vec2D* pts) :
+            m_verbs(verbs), m_pts(pts)
+        {}
 
         bool operator!=(const Iter& that) const
         {
@@ -105,7 +110,8 @@ public:
             return m_verbs == that.m_verbs;
         }
 
-        // Generic accessors. The points pointer is adjusted to point to p0 for each specific verb.
+        // Generic accessors. The points pointer is adjusted to point to p0 for
+        // each specific verb.
         PathVerb verb() const { return *m_verbs; }
         const Vec2D* pts() const { return m_pts + PtsBacksetForVerb(verb()); }
         std::tuple<PathVerb, const Vec2D*> operator*() const
@@ -114,8 +120,9 @@ public:
             return {verb, m_pts + PtsBacksetForVerb(verb)};
         }
 
-        // Specific point accessors for callers who already know the verb. (These may be a tiny bit
-        // faster in some cases since the iterator doesn't have to check the verb.)
+        // Specific point accessors for callers who already know the verb.
+        // (These may be a tiny bit faster in some cases since the iterator
+        // doesn't have to check the verb.)
         Vec2D movePt() const
         {
             assert(verb() == PathVerb::move);
@@ -141,11 +148,11 @@ public:
             assert(verb() == PathVerb::close);
             return m_pts[-1];
         }
-        // P0 for a close can be accessed via rawPtsPtr()[-1]. Note than p1 for a close is not in
-        // the array at this location.
+        // P0 for a close can be accessed via rawPtsPtr()[-1]. Note than p1 for
+        // a close is not in the array at this location.
 
-        // Internal pointers held by the iterator. See PtsBacksetForVerb() for how pts() relates to
-        // the data for specific verbs.
+        // Internal pointers held by the iterator. See PtsBacksetForVerb() for
+        // how pts() relates to the data for specific verbs.
         const PathVerb* rawVerbsPtr() const { return m_verbs; }
         const Vec2D* rawPtsPtr() const { return m_pts; }
 
@@ -174,10 +181,10 @@ public:
             RIVE_UNREACHABLE();
         }
 
-        // Where is p0 relative to our m_pts pointer? We find the start point of segments by
-        // peeking backwards from the current point, which works as long as there is always a
-        // PathVerb::move before any geometry. (injectImplicitMoveToIfNeeded() guarantees this
-        // to be the case.)
+        // Where is p0 relative to our m_pts pointer? We find the start point of
+        // segments by peeking backwards from the current point, which works as
+        // long as there is always a PathVerb::move before any geometry.
+        // (injectImplicitMoveToIfNeeded() guarantees this to be the case.)
         inline static int PtsBacksetForVerb(PathVerb verb)
         {
             switch (verb)
@@ -203,7 +210,8 @@ public:
     Iter begin() const { return {m_Verbs.data(), m_Points.data()}; }
     Iter end() const
     {
-        return {m_Verbs.data() + m_Verbs.size(), m_Points.data() + m_Points.size()};
+        return {m_Verbs.data() + m_Verbs.size(),
+                m_Points.data() + m_Points.size()};
     }
 
     template <typename Handler> RawPath morph(Handler proc) const
@@ -236,9 +244,11 @@ public:
         return dst;
     }
 
-    // Adds the given RawPath to the end of this path, with an optional transform.
-    // Returns an iterator at the beginning of the newly added geometry.
+    // Adds the given RawPath to the end of this path, with an optional
+    // transform. Returns an iterator at the beginning of the newly added
+    // geometry.
     Iter addPath(const RawPath&, const Mat2D* = nullptr);
+    Iter addPathBackwards(const RawPath&, const Mat2D* = nullptr);
 
     void pruneEmptySegments(Iter start);
     void pruneEmptySegments() { pruneEmptySegments(begin()); }
@@ -246,9 +256,20 @@ public:
     // Utility for pouring a RawPath into a CommandPath
     void addTo(CommandPath*) const;
 
-    // If there is not currently an open contour, this method opens a new contour at the current pen
-    // location, or [0,0] if the path is empty. Otherwise it does nothing.
+    // If there is not currently an open contour, this method opens a new
+    // contour at the current pen location, or [0,0] if the path is empty.
+    // Otherwise it does nothing.
     void injectImplicitMoveIfNeeded();
+
+    void reserve(size_t numVerbs, size_t numPts)
+    {
+        m_Verbs.reserve(numVerbs);
+        m_Points.reserve(numPts);
+    }
+    // Approximates the area of the path by linearizing it with a coarse
+    // tolerance of 8px in artboard space.
+    constexpr static float kCoarseAreaTolerance = 8;
+    float computeCoarseArea() const;
 
 private:
     std::vector<Vec2D> m_Points;
@@ -256,6 +277,10 @@ private:
     size_t m_lastMoveIdx;
     // True of the path is nonempty and the most recent verb is not "close".
     bool m_contourIsOpen = false;
+
+    void addPoints(std::vector<Vec2D>::const_reverse_iterator& rev_iter,
+                   int count,
+                   const Mat2D* = nullptr);
 };
 
 } // namespace rive

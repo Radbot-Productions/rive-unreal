@@ -11,6 +11,8 @@
 #include "Layout/Geometry.h"
 #include "Tickable.h"
 
+#include <atomic>
+
 #if WITH_RIVE
 struct FArtboardDefinition;
 struct FRiveCommandBuilder;
@@ -53,6 +55,15 @@ public:
     // Reset the underlying artboard instance size.
     UFUNCTION(BlueprintCallable, Category = Rive)
     void ResetNativeArtboardSize();
+
+    // Marks native layout bounds stale. Slate consumes this before drawing.
+    UFUNCTION(BlueprintCallable, Category = Rive)
+    void InvalidateLayout();
+
+    uint32 GetLayoutInvalidationVersion() const
+    {
+        return LayoutInvalidationVersion.load(std::memory_order_relaxed);
+    }
 
     // Used by view model updates to unsettle the state machine.
     UFUNCTION(BlueprintCallable, Category = Rive)
@@ -288,6 +299,7 @@ private:
     uint64_t StateMachineCreateRequestId = 0;
     /** The Matrix at the time of the last call to Draw for this Artboard **/
     FMatrix LastDrawTransform = FMatrix::Identity;
+    std::atomic<uint32> LayoutInvalidationVersion{1};
 
     // This is for when we don't have a state machine. Consider it legacy
     // support.

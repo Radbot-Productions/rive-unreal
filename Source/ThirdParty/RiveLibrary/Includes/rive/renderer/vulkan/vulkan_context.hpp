@@ -4,44 +4,52 @@
 
 #pragma once
 
+#include "rive/renderer/gpu_resource.hpp"
 #include "rive/renderer/vulkan/vkutil.hpp"
-#include <deque>
+
+VK_DEFINE_HANDLE(VmaAllocator);
 
 namespace rive::gpu
 {
-// Specifies the Vulkan API version and which relevant features have been enabled.
-// The client should ensure the features get enabled if they are supported.
+// Specifies the Vulkan API version and which relevant features have been
+// enabled. The client should ensure the features get enabled if they are
+// supported.
 struct VulkanFeatures
 {
-    uint32_t vulkanApiVersion = VK_API_VERSION_1_0;
-    uint32_t vendorID = 0;
+    uint32_t apiVersion = VK_API_VERSION_1_1;
 
     // VkPhysicalDeviceFeatures.
     bool independentBlend = false;
     bool fillModeNonSolid = false;
     bool fragmentStoresAndAtomics = false;
+    bool shaderClipDistance = false;
 
     // EXT_rasterization_order_attachment_access.
     bool rasterizationOrderColorAttachmentAccess = false;
+
+    // VK_EXT_fragment_shader_interlock.
+    bool fragmentShaderPixelInterlock = false;
+
+    // Indicates a nonconformant driver, like MoltenVK.
+    bool VK_KHR_portability_subset = false;
 };
 
 // Wraps a VkDevice, function dispatch table, and VMA library instance.
 //
 // Provides methods to allocate vkutil::RenderingResource objects, and manages
-// their lifecycles via a "resource purgatory", which keeps resources alive until
-// command buffers have finished using them.
+// their lifecycles via a "resource purgatory", which keeps resources alive
+// until command buffers have finished using them.
 //
-// Provides minor helper utilities, but for the most part, the client is expected
-// to make raw Vulkan calls via the provided function pointers.
-class VulkanContext : public RefCnt<VulkanContext>
+// Provides minor helper utilities, but for the most part, the client is
+// expected to make raw Vulkan calls via the provided function pointers.
+class VulkanContext : public GPUResourceManager
 {
 public:
     VulkanContext(VkInstance,
                   VkPhysicalDevice,
                   VkDevice,
                   const VulkanFeatures&,
-                  PFN_vkGetInstanceProcAddr,
-                  PFN_vkGetDeviceProcAddr);
+                  PFN_vkGetInstanceProcAddr);
 
     ~VulkanContext();
 
@@ -49,96 +57,90 @@ public:
     const VkPhysicalDevice physicalDevice;
     const VkDevice device;
     const VulkanFeatures features;
-    const VmaAllocator vmaAllocator;
 
-#define RIVE_VULKAN_DEVICE_COMMANDS(F)                                                             \
-    F(AllocateCommandBuffers)                                                                      \
-    F(AllocateDescriptorSets)                                                                      \
-    F(CmdBeginRenderPass)                                                                          \
-    F(CmdBindDescriptorSets)                                                                       \
-    F(CmdBindIndexBuffer)                                                                          \
-    F(CmdBindPipeline)                                                                             \
-    F(CmdBindVertexBuffers)                                                                        \
-    F(CmdBlitImage)                                                                                \
-    F(CmdClearColorImage)                                                                          \
-    F(CmdCopyBufferToImage)                                                                        \
-    F(CmdDraw)                                                                                     \
-    F(CmdDrawIndexed)                                                                              \
-    F(CmdEndRenderPass)                                                                            \
-    F(CmdPipelineBarrier)                                                                          \
-    F(CmdSetScissor)                                                                               \
-    F(CmdSetViewport)                                                                              \
-    F(CreateCommandPool)                                                                           \
-    F(CreateDescriptorPool)                                                                        \
-    F(CreateDescriptorSetLayout)                                                                   \
-    F(CreateFence)                                                                                 \
-    F(CreateFramebuffer)                                                                           \
-    F(CreateGraphicsPipelines)                                                                     \
-    F(CreateImageView)                                                                             \
-    F(CreatePipelineLayout)                                                                        \
-    F(CreateRenderPass)                                                                            \
-    F(CreateSampler)                                                                               \
-    F(CreateSemaphore)                                                                             \
-    F(CreateShaderModule)                                                                          \
-    F(DestroyCommandPool)                                                                          \
-    F(DestroyDescriptorPool)                                                                       \
-    F(DestroyDescriptorSetLayout)                                                                  \
-    F(DestroyFence)                                                                                \
-    F(DestroyFramebuffer)                                                                          \
-    F(DestroyImageView)                                                                            \
-    F(DestroyPipeline)                                                                             \
-    F(DestroyPipelineLayout)                                                                       \
-    F(DestroyRenderPass)                                                                           \
-    F(DestroySampler)                                                                              \
-    F(DestroySemaphore)                                                                            \
-    F(DestroyShaderModule)                                                                         \
-    F(FreeCommandBuffers)                                                                          \
-    F(ResetCommandBuffer)                                                                          \
-    F(ResetDescriptorPool)                                                                         \
-    F(ResetFences)                                                                                 \
-    F(UpdateDescriptorSets)                                                                        \
-    F(WaitForFences)
+#define RIVE_VULKAN_INSTANCE_COMMANDS(F)                                       \
+    F(GetDeviceProcAddr)                                                       \
+    F(GetPhysicalDeviceFormatProperties)                                       \
+    F(GetPhysicalDeviceProperties)                                             \
+    F(SetDebugUtilsObjectNameEXT)
+
+#define RIVE_VULKAN_DEVICE_COMMANDS(F)                                         \
+    F(AllocateDescriptorSets)                                                  \
+    F(CmdBeginRenderPass)                                                      \
+    F(CmdBindDescriptorSets)                                                   \
+    F(CmdBindIndexBuffer)                                                      \
+    F(CmdBindPipeline)                                                         \
+    F(CmdBindVertexBuffers)                                                    \
+    F(CmdBlitImage)                                                            \
+    F(CmdClearColorImage)                                                      \
+    F(CmdCopyBufferToImage)                                                    \
+    F(CmdDraw)                                                                 \
+    F(CmdDrawIndexed)                                                          \
+    F(CmdEndRenderPass)                                                        \
+    F(CmdFillBuffer)                                                           \
+    F(CmdNextSubpass)                                                          \
+    F(CmdPipelineBarrier)                                                      \
+    F(CmdSetScissor)                                                           \
+    F(CmdSetViewport)                                                          \
+    F(CreateDescriptorPool)                                                    \
+    F(CreateDescriptorSetLayout)                                               \
+    F(CreateFramebuffer)                                                       \
+    F(CreateGraphicsPipelines)                                                 \
+    F(CreateImageView)                                                         \
+    F(CreatePipelineLayout)                                                    \
+    F(CreateRenderPass)                                                        \
+    F(CreateSampler)                                                           \
+    F(CreateShaderModule)                                                      \
+    F(DestroyDescriptorPool)                                                   \
+    F(DestroyDescriptorSetLayout)                                              \
+    F(DestroyFramebuffer)                                                      \
+    F(DestroyImageView)                                                        \
+    F(DestroyPipeline)                                                         \
+    F(DestroyPipelineLayout)                                                   \
+    F(DestroyRenderPass)                                                       \
+    F(DestroySampler)                                                          \
+    F(DestroyShaderModule)                                                     \
+    F(ResetDescriptorPool)                                                     \
+    F(UpdateDescriptorSets)
 
 #define DECLARE_VULKAN_COMMAND(CMD) const PFN_vk##CMD CMD;
+    RIVE_VULKAN_INSTANCE_COMMANDS(DECLARE_VULKAN_COMMAND)
     RIVE_VULKAN_DEVICE_COMMANDS(DECLARE_VULKAN_COMMAND)
 #undef DECLARE_VULKAN_COMMAND
 
-    uint64_t currentFrameIdx() const { return m_currentFrameIdx; }
+    VmaAllocator allocator() const { return m_vmaAllocator; }
 
-    // Called at the beginning of a new frame. This is where we purge
-    // m_resourcePurgatory, so the client is responsible to guarantee that all
-    // command buffers from frame "N + 1 - gpu::kBufferRingSize" have finished
-    // executing before calling this method.
-    void onNewFrameBegun();
+    const VkPhysicalDeviceProperties& physicalDeviceProperties() const
+    {
+        return m_physicalDeviceProperties;
+    }
 
-    // Called when a vkutil::RenderingResource has been fully released (refCnt
-    // reaches 0). The resource won't actually be deleted until the current frame's
-    // command buffer has finished executing.
-    void onRenderingResourceReleased(const vkutil::RenderingResource* resource);
-
-    // Called prior to the client beginning its shutdown cycle, and after all
-    // command buffers from all frames have finished executing. After shutting
-    // down, we delete vkutil::RenderingResources immediately instead of going
-    // through m_resourcePurgatory.
-    void shutdown();
+    bool isFormatSupportedWithFeatureFlags(VkFormat, VkFormatFeatureFlagBits);
+    bool supportsD24S8() const { return m_supportsD24S8; }
 
     // Resource allocation.
-    rcp<vkutil::Buffer> makeBuffer(const VkBufferCreateInfo&, vkutil::Mappability);
-    rcp<vkutil::Texture> makeTexture(const VkImageCreateInfo&);
-    rcp<vkutil::TextureView> makeTextureView(rcp<vkutil::Texture>);
-    rcp<vkutil::TextureView> makeTextureView(rcp<vkutil::Texture> texture,
-                                             const VkImageViewCreateInfo&);
-    rcp<vkutil::TextureView> makeExternalTextureView(const VkImageUsageFlags,
-                                                     const VkImageViewCreateInfo&);
+    rcp<vkutil::Buffer> makeBuffer(const VkBufferCreateInfo&,
+                                   vkutil::Mappability);
+    rcp<vkutil::Image> makeImage(const VkImageCreateInfo&, const char* name);
+    rcp<vkutil::ImageView> makeImageView(rcp<vkutil::Image>, const char* name);
+    rcp<vkutil::ImageView> makeImageView(rcp<vkutil::Image>,
+                                         const VkImageViewCreateInfo&,
+                                         const char* name);
+    rcp<vkutil::ImageView> makeExternalImageView(const VkImageViewCreateInfo&,
+                                                 const char* name);
+    rcp<vkutil::Texture2D> makeTexture2D(const VkImageCreateInfo&,
+                                         const char* name);
     rcp<vkutil::Framebuffer> makeFramebuffer(const VkFramebufferCreateInfo&);
 
     // Helpers.
-    void updateImageDescriptorSets(VkDescriptorSet,
-                                   VkWriteDescriptorSet,
-                                   std::initializer_list<VkDescriptorImageInfo>);
-    void updateBufferDescriptorSets(VkDescriptorSet,
-                                    VkWriteDescriptorSet,
-                                    std::initializer_list<VkDescriptorBufferInfo>);
+    void updateImageDescriptorSets(
+        VkDescriptorSet,
+        VkWriteDescriptorSet,
+        std::initializer_list<VkDescriptorImageInfo>);
+    void updateBufferDescriptorSets(
+        VkDescriptorSet,
+        VkWriteDescriptorSet,
+        std::initializer_list<VkDescriptorBufferInfo>);
 
     void memoryBarrier(VkCommandBuffer,
                        VkPipelineStageFlags srcStageMask,
@@ -167,32 +169,13 @@ public:
                             &imageMemoryBarrier);
     }
 
-    struct TextureAccess
-    {
-        VkPipelineStageFlags pipelineStages = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        VkAccessFlags accessMask = VK_ACCESS_NONE;
-        VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    };
-
-    const TextureAccess& simpleImageMemoryBarrier(VkCommandBuffer commandBuffer,
-                                                  const TextureAccess& srcAccess,
-                                                  const TextureAccess& dstAccess,
-                                                  VkImage image,
-                                                  VkDependencyFlags dependencyFlags = 0)
-    {
-        imageMemoryBarrier(commandBuffer,
-                           srcAccess.pipelineStages,
-                           dstAccess.pipelineStages,
-                           dependencyFlags,
-                           {
-                               .srcAccessMask = srcAccess.accessMask,
-                               .dstAccessMask = dstAccess.accessMask,
-                               .oldLayout = srcAccess.layout,
-                               .newLayout = dstAccess.layout,
-                               .image = image,
-                           });
-        return dstAccess;
-    }
+    const vkutil::ImageAccess& simpleImageMemoryBarrier(
+        VkCommandBuffer,
+        const vkutil::ImageAccess& srcAccess,
+        const vkutil::ImageAccess& dstAccess,
+        VkImage,
+        vkutil::ImageAccessAction = vkutil::ImageAccessAction::preserveContents,
+        VkDependencyFlags = 0);
 
     void bufferMemoryBarrier(VkCommandBuffer,
                              VkPipelineStageFlags srcStageMask,
@@ -200,26 +183,25 @@ public:
                              VkDependencyFlags,
                              VkBufferMemoryBarrier);
 
-    void blitSubRect(VkCommandBuffer commandBuffer, VkImage src, VkImage dst, const IAABB&);
+    void clearColorImage(VkCommandBuffer, ColorInt, VkImage, VkImageLayout);
+
+    void blitSubRect(VkCommandBuffer commandBuffer,
+                     VkImage srcImage,
+                     VkImageLayout srcImageLayout,
+                     VkImage dstImage,
+                     VkImageLayout dstImageLayout,
+                     const IAABB&);
+
+    void setDebugNameIfEnabled(uint64_t handle,
+                               VkObjectType objectType,
+                               const char* name);
 
 private:
-    VmaVulkanFunctions& initVmaVulkanFunctions(PFN_vkGetInstanceProcAddr fn_vkGetInstanceProcAddr,
-                                               PFN_vkGetDeviceProcAddr fn_vkGetDeviceProcAddr)
-    {
-        return m_vmaVulkanFunctions = {
-                   .vkGetInstanceProcAddr = fn_vkGetInstanceProcAddr,
-                   .vkGetDeviceProcAddr = fn_vkGetDeviceProcAddr,
-               };
-    }
+    const VmaAllocator m_vmaAllocator;
 
-    VmaVulkanFunctions m_vmaVulkanFunctions;
+    VkPhysicalDeviceProperties m_physicalDeviceProperties;
 
-    // Temporary storage for vkutil::RenderingResource instances that have been
-    // fully released, but need to persist until in-flight command buffers have
-    // finished referencing their underlying Vulkan objects.
-    std::deque<vkutil::ZombieResource<const vkutil::RenderingResource>> m_resourcePurgatory;
-
-    uint64_t m_currentFrameIdx = 0;
-    bool m_shutdown = false; // Indicates that we are in a shutdown cycle.
+    // Vulkan spec: must support one of D24S8 and D32S8.
+    bool m_supportsD24S8 = false;
 };
 } // namespace rive::gpu

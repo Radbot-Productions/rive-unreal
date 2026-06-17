@@ -11,7 +11,6 @@
 #include "Rive/RiveFile.h"
 #include "Rive/RiveUtils.h"
 #include "Engine/BlueprintGeneratedClass.h"
-#include "Misc/EngineVersionComparison.h"
 
 #if WITH_EDITOR
 #include "Misc/MessageDialog.h"
@@ -403,7 +402,6 @@ void URiveViewModel::Initialize(
                               TEXT("_TriggerDelegate")));
                 TriggerDelegate->OwningViewModel = this;
                 TriggerDelegate->TriggerIndex = Index;
-                TriggerDelegates.Add(PropertyDefinition.Name, TriggerDelegate);
                 GenericDelegate.BindUFunction(TriggerDelegate,
                                               FName(TriggerName));
                 if (auto DelegateProperty =
@@ -821,18 +819,6 @@ bool URiveViewModel::InsertToList(const FString& ListName,
     return true;
 }
 
-bool URiveViewModel::ClearList(const FString& ListName)
-{
-    if (!ContainsListsByName(ListName))
-        return false;
-
-    auto& Builder = IRiveRendererModule::Get().GetCommandBuilder();
-    Builder.ClearViewModelList(NativeViewModelInstance, ListName);
-    UnsettleStateMachine(TEXT("ClearList"));
-    ClearListData(ListName);
-    return true;
-}
-
 bool URiveViewModel::RemoveFromList(const FString& ListName,
                                     URiveViewModel* Value)
 {
@@ -979,8 +965,6 @@ void URiveViewModel::K2_InsertToList(FRiveList List,
 {
     InsertToList(List.Path, Index, Value);
 }
-
-void URiveViewModel::K2_ClearList(FRiveList List) { ClearList(List.Path); }
 
 void URiveViewModel::K2_RemoveFromList(FRiveList List, URiveViewModel* Value)
 {
@@ -1174,11 +1158,7 @@ void URiveViewModel::OnViewModelDataReceived(
                                TEXT("Failed to get delegate input property"));
                     }
                 }
-#if UE_VERSION_OLDER_THAN(5, 8, 0)
                 Delegate->ProcessMulticastDelegate<UObject>(Parameters);
-#else
-                Delegate->ProcessDelegate<UObject>(Parameters);
-#endif
             }
             break;
         case rive::DataType::number:
@@ -1330,8 +1310,13 @@ void URiveViewModel::BeginDestroy()
                 RiveDataTypeToDataType(PropertyDefinition.Type));
         }
         Builder.DestroyViewModel(NativeViewModelInstance);
-        ensure(ViewModelInstances.Contains(NativeViewModelInstance));
-        ViewModelInstances.Remove(NativeViewModelInstance);
+        if (ViewModelInstances.Remove(NativeViewModelInstance) == 0)
+        {
+            UE_LOG(LogRive,
+                   Warning,
+                   TEXT("URiveViewModel::BeginDestroy destroyed an unregistered native view model handle."));
+        }
+        NativeViewModelInstance = RIVE_NULL_HANDLE;
     }
     UObject::BeginDestroy();
 }
@@ -1487,32 +1472,6 @@ bool URiveViewModel::RemoveFieldValueChangedDelegate(
     return RemoveResult.bRemoved;
 }
 
-void URiveViewModel::ClearListData(const FString& ListPath)
-{
-    FStructProperty* Property =
-        FindFProperty<FStructProperty>(GetClass(), *ListPath);
-    if (!Property)
-    {
-        UE_LOG(LogRive,
-               Error,
-               TEXT("Failed to find list property to update !"));
-        return;
-    }
-
-    FRiveList* List = Property->ContainerPtrToValuePtr<FRiveList>(this);
-    if (!List)
-    {
-        UE_LOG(
-            LogRive,
-            Error,
-            TEXT(
-                "URiveViewModel::UpdateListWithViewModelData Failed to find list property to update !"));
-        return;
-    }
-
-    List->ViewModels.Empty();
-}
-
 void URiveViewModel::UpdateListWithViewModelData(const FString& ListPath,
                                                  URiveViewModel* Value,
                                                  bool bRemove)
@@ -1590,7 +1549,5 @@ void URiveTriggerDelegate::SetTrigger()
                 .Type;
         check(TriggerType == ERiveDataType::Trigger)
             ViewModel->SetTrigger(TriggerName);
-
-        OnTrigger.Broadcast(ViewModel.Get(), TriggerName);
     }
 }

@@ -239,21 +239,35 @@ void URiveArtboard::SetupStateMachine(FRiveCommandBuilder& InCommandBuilder,
 
     if (InAutoBindViewModel)
     {
-        if (ArtboardDefinition.DefaultViewModel.IsEmpty())
+        FString ViewModelName = ArtboardDefinition.DefaultViewModel;
+        if (!ArtboardDefinition.DefaultViewModelInstance.IsEmpty())
         {
-            UE_LOG(
-                LogRive,
-                Error,
-                TEXT(
-                    "Artboard %s does not have a default view model to autobind."),
-                *ArtboardDefinition.Name);
+            ViewModelName +=
+                TEXT("_") + ArtboardDefinition.DefaultViewModelInstance;
+        }
+        ViewModelName = RiveUtils::SanitizeObjectName(ViewModelName);
+        auto ViewModelDef = RiveFile->GetViewModelDefinition(
+            ArtboardDefinition.DefaultViewModel);
+        if (!ViewModelDef)
+        {
+            UE_LOG(LogRive,
+                   Error,
+                   TEXT("Failed to autobind view mode %s because it is not "
+                        "found in file %s"),
+                   *ArtboardDefinition.Name,
+                   *RiveFile->GetName());
             return;
         }
-        auto ViewModel = RiveFile->CreateViewModelByName(
-            RiveFile.Get(),
-            ArtboardDefinition.DefaultViewModel,
-            ArtboardDefinition.DefaultViewModelInstance);
-
+        const auto UniqueName =
+            MakeUniqueObjectName(GetOuter(),
+                                 URiveViewModel::StaticClass(),
+                                 *ViewModelName);
+        auto ViewModel =
+            NewObject<URiveViewModel>(RiveFile->GetOuter(), UniqueName);
+        ViewModel->Initialize(InCommandBuilder,
+                              RiveFile.Get(),
+                              *ViewModelDef,
+                              GetDefaultViewModelInstance());
         StateMachine->BindViewModel(ViewModel);
         BoundViewModel = ViewModel;
     }
@@ -318,6 +332,7 @@ void URiveArtboard::SetViewModel(URiveViewModel* RiveViewModelInstance)
     {
         StateMachine->BindViewModel(RiveViewModelInstance);
         BoundViewModel = RiveViewModelInstance;
+        InvalidateLayout();
     }
     else
     {
@@ -478,6 +493,7 @@ void URiveArtboard::SetNativeArtboardSizeWithScale(float Width,
                                                    float Height,
                                                    float Scale)
 {
+    InvalidateLayout();
     auto& Builder = IRiveRendererModule::Get().GetCommandBuilder();
     Builder.SetArtboardSize(NativeArtboardHandle, Width, Height, Scale);
     if (StateMachine.IsValid())
@@ -488,6 +504,7 @@ void URiveArtboard::SetNativeArtboardSizeWithScale(float Width,
 
 void URiveArtboard::ResetNativeArtboardSize()
 {
+    InvalidateLayout();
     auto& Builder = IRiveRendererModule::Get().GetCommandBuilder();
     Builder.ResetArtboardSize(NativeArtboardHandle);
     if (StateMachine.IsValid())
@@ -496,8 +513,14 @@ void URiveArtboard::ResetNativeArtboardSize()
     }
 }
 
+void URiveArtboard::InvalidateLayout()
+{
+    LayoutInvalidationVersion.fetch_add(1, std::memory_order_relaxed);
+}
+
 void URiveArtboard::UnsettleStateMachine()
 {
+    InvalidateLayout();
     if (StateMachine.IsValid())
     {
         StateMachine->SetStateMachineSettled(false);

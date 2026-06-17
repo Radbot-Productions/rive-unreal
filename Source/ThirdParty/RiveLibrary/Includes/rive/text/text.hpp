@@ -4,36 +4,50 @@
 #include "rive/math/aabb.hpp"
 #include "rive/text/text_value_run.hpp"
 #include "rive/text_engine.hpp"
+#include "rive/shapes/shape_paint_path.hpp"
 #include "rive/simple_array.hpp"
-#include <vector>
 #include "rive/text/glyph_lookup.hpp"
+#include "rive/text/text_interface.hpp"
+#include "rive/data_bind/data_bind_list_item_consumer.hpp"
+#include "rive/viewmodel/symbol_type.hpp"
+#include "rive/viewmodel/viewmodel_instance.hpp"
+#include "rive/viewmodel/viewmodel_instance_value.hpp"
+#include "rive/viewmodel/property_symbol_dependent.hpp"
+#include "rive/dirtyable.hpp"
+
+#include <functional>
+#include <unordered_map>
+#include <vector>
+
 namespace rive
 {
 
-enum class TextSizing : uint8_t
-{
-    autoWidth,
-    autoHeight,
-    fixed
-};
-
-enum class TextOverflow : uint8_t
-{
-    visible,
-    hidden,
-    clipped,
-    ellipsis,
-    fit,
-};
-
-enum class TextOrigin : uint8_t
-{
-    top,
-    baseline
-};
-
-class OrderedLine;
+class Factory;
+class Renderer;
 class TextModifierGroup;
+class TextStylePaint;
+
+// A draw command for interleaving monochrome style paths and color glyphs.
+struct TextDrawCommand
+{
+    enum Type
+    {
+        kStylePath,
+        kColorGlyph
+    };
+    Type type;
+    TextStylePaint* style = nullptr; // for kStylePath
+
+    struct ColorGlyphInfo
+    {
+        rcp<Font> font;
+        GlyphID glyphId;
+        Mat2D transform;
+        ColorInt foregroundColor;
+        float opacity;
+    };
+    ColorGlyphInfo colorGlyph; // for kColorGlyph
+};
 
 class StyledText
 {
@@ -58,137 +72,130 @@ public:
     void swapRuns(std::vector<TextRun>& otherRuns) { m_runs.swap(otherRuns); }
 };
 
-// STL-style iterator for individual glyphs in a line, simplfies call sites from
-// needing to iterate both runs and glyphs within those runs per line. A single
-// iterator allows iterating all the glyphs in the line and provides the correct
-// run they belong to (this also takes into account bidi which can put the runs
-// in different order from how they were provided by the line breaker).
-//
-//   for (auto [run, glyphIndex] : orderedLine) { ... }
-//
-class GlyphItr
+struct TextBoundsInfo
 {
-public:
-    GlyphItr() = default;
-    GlyphItr(const OrderedLine* line, const rive::GlyphRun* const* run, uint32_t glyphIndex) :
-        m_line(line), m_run(run), m_glyphIndex(glyphIndex)
-    {}
-
-    void tryAdvanceRun();
-
-    bool operator!=(const GlyphItr& that) const
-    {
-        return m_run != that.m_run || m_glyphIndex != that.m_glyphIndex;
-    }
-    bool operator==(const GlyphItr& that) const
-    {
-        return m_run == that.m_run && m_glyphIndex == that.m_glyphIndex;
-    }
-
-    GlyphItr& operator++();
-
-    std::tuple<const GlyphRun*, uint32_t> operator*() const { return {*m_run, m_glyphIndex}; }
-
-private:
-    const OrderedLine* m_line;
-    const rive::GlyphRun* const* m_run;
-    uint32_t m_glyphIndex;
+    float minY;
+    float maxWidth;
+    float totalHeight;
+    int ellipsisLine;
+    bool isEllipsisLineLast;
 };
 
-// Represents a line of text with runs ordered visually. Also tracks logical
-// start/end which will defer when using bidi.
-class OrderedLine
+enum class LineIter : uint8_t
+{
+    drawLine,
+    skipThisLine,
+    yOutOfBounds
+};
+
+class Text;
+
+#ifdef WITH_RIVE_TEXT
+class TextValueRunListener;
+
+class TextValueRunProperty : public PropertySymbolDependentSingle
 {
 public:
-    OrderedLine(const Paragraph& paragraph,
-                const GlyphLine& line,
-                float lineWidth, // for ellipsis
-                bool wantEllipsis,
-                bool isEllipsisLineLast,
-                GlyphRun* ellipsisRun);
+    TextValueRunProperty(Core* textValueRun,
+                         TextValueRunListener* textValueRunListener,
+                         ViewModelInstanceValue* instanceValue,
+                         uint16_t propertyKey,
+                         SymbolType symbolType);
 
-    bool buildEllipsisRuns(std::vector<const GlyphRun*>& logicalRuns,
-                           const Paragraph& paragraph,
-                           const GlyphLine& line,
-                           float lineWidth,
-                           bool isEllipsisLineLast,
-                           GlyphRun* ellipsisRun);
-    const GlyphRun* startLogical() const { return m_startLogical; }
-    const GlyphRun* endLogical() const { return m_endLogical; }
-    const std::vector<const GlyphRun*>& runs() const { return m_runs; }
-
-    GlyphItr begin() const
-    {
-        auto runItr = m_runs.data();
-        auto itr = GlyphItr(this, runItr, startGlyphIndex(*runItr));
-        itr.tryAdvanceRun();
-        return itr;
-    }
-
-    GlyphItr end() const
-    {
-        auto runItr = m_runs.data() + (m_runs.size() == 0 ? 0 : m_runs.size() - 1);
-        return GlyphItr(this, runItr, endGlyphIndex(*runItr));
-    }
+    void writeValue() override;
 
 private:
-    const GlyphRun* m_startLogical = nullptr;
-    const GlyphRun* m_endLogical = nullptr;
-    uint32_t m_startGlyphIndex;
-    uint32_t m_endGlyphIndex;
-    std::vector<const GlyphRun*> m_runs;
+    SymbolType m_symbolType = SymbolType::none;
+};
 
+class TextValueRunListener : public CoreObjectListener
+{
 public:
-    const GlyphRun* lastRun() const { return m_runs.back(); }
-    uint32_t startGlyphIndex(const GlyphRun* run) const
+    TextValueRunListener(TextValueRun* textValueRun,
+                         rcp<ViewModelInstance> instance,
+                         Text* text);
+
+    void markDirty() override;
+    Text* text() { return m_text; }
+    TextValueRun* textValueRun()
     {
-        switch (run->dir)
+        if (m_core)
         {
-            case TextDirection::ltr:
-                return m_startLogical == run ? m_startGlyphIndex : 0;
-            case TextDirection::rtl:
-                return (m_endLogical == run ? m_endGlyphIndex : (uint32_t)run->glyphs.size()) - 1;
+            return m_core->as<TextValueRun>();
         }
-        RIVE_UNREACHABLE();
+        return nullptr;
     }
-    uint32_t endGlyphIndex(const GlyphRun* run) const
+
+protected:
+    void createProperties() override;
+
+private:
+    Text* m_text = nullptr;
+    void createPropertyListener(SymbolType symbolType);
+    TextValueRunProperty* createSinglePropertyListener(SymbolType symbolType);
+};
+#endif
+
+struct ColorGlyphCacheKey
+{
+    const Font* font;
+    GlyphID glyphId;
+    bool operator==(const ColorGlyphCacheKey& o) const
     {
-        switch (run->dir)
-        {
-            case TextDirection::ltr:
-                return m_endLogical == run ? m_endGlyphIndex : (uint32_t)run->glyphs.size();
-            case TextDirection::rtl:
-                return (m_startLogical == run ? m_startGlyphIndex : 0) - 1;
-        }
-        RIVE_UNREACHABLE();
+        return font == o.font && glyphId == o.glyphId;
     }
 };
 
-class TextStyle;
-class Text : public TextBase
+struct ColorGlyphCacheHash
+{
+    size_t operator()(const ColorGlyphCacheKey& k) const
+    {
+        size_t h = std::hash<const void*>()(k.font);
+        h ^=
+            std::hash<uint16_t>()(k.glyphId) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        return h;
+    }
+};
+
+class Text : public TextBase,
+             public TextInterface,
+             public DataBindListItemConsumer
 {
 public:
+    // Implements TextInterface
+    ~Text();
+    void markShapeDirty() override;
+    void markPaintDirty() override;
+
     void draw(Renderer* renderer) override;
     Core* hitTest(HitInfo*, const Mat2D&) override;
     void addRun(TextValueRun* run);
     void addModifierGroup(TextModifierGroup* group);
-    void markShapeDirty(bool sendToLayout = true);
+    void markShapeDirty(bool sendToLayout);
     void modifierShapeDirty();
-    void markPaintDirty();
-    void update(ComponentDirt value) override;
-    Mat2D m_transform;
 
+    void update(ComponentDirt value) override;
+    void onDirty(ComponentDirt value) override;
+    Mat2D m_transform;
+    Mat2D m_shapeWorldTransform;
+
+    const Mat2D& shapeWorldTransform() const { return m_shapeWorldTransform; }
     TextSizing sizing() const { return (TextSizing)sizingValue(); }
     TextSizing effectiveSizing() const;
     TextOverflow overflow() const { return (TextOverflow)overflowValue(); }
     TextOrigin textOrigin() const { return (TextOrigin)originValue(); }
     TextWrap wrap() const { return (TextWrap)wrapValue(); }
-    VerticalTextAlign verticalAlign() const { return (VerticalTextAlign)verticalAlignValue(); }
+    VerticalTextAlign verticalAlign() const
+    {
+        return (VerticalTextAlign)verticalAlignValue();
+    }
+    TextAlign align() const;
     void overflow(TextOverflow value) { return overflowValue((uint32_t)value); }
     void buildRenderStyles();
-    const TextStyle* styleFromShaperId(uint16_t id) const;
+    const TextStylePaint* styleFromShaperId(uint16_t id) const;
     bool modifierRangesNeedShape() const;
     AABB localBounds() const override;
+    AABB constraintBounds() const override { return localBounds(); }
     void originXChanged() override;
     void originYChanged() override;
 
@@ -196,19 +203,32 @@ public:
                         LayoutMeasureMode widthMode,
                         float height,
                         LayoutMeasureMode heightMode) override;
-    void controlSize(Vec2D size) override;
-    float effectiveWidth() { return std::isnan(m_layoutWidth) ? width() : m_layoutWidth; }
-    float effectiveHeight() { return std::isnan(m_layoutHeight) ? height() : m_layoutHeight; }
+    void controlSize(Vec2D size,
+                     LayoutScaleType widthScaleType,
+                     LayoutScaleType heightScaleType,
+                     LayoutDirection direction) override;
+    float effectiveWidth()
+    {
+        return std::isnan(m_layoutWidth) ? width() : m_layoutWidth;
+    }
+    float effectiveHeight()
+    {
+        return std::isnan(m_layoutHeight) ? height() : m_layoutHeight;
+    }
+    float computedWidth() override { return localBounds().width(); };
+    float computedHeight() override { return localBounds().height(); };
+    void updateList(std::vector<rcp<ViewModelInstanceListItem>>* list) override;
 #ifdef WITH_RIVE_TEXT
-    const std::vector<TextValueRun*>& runs() const { return m_runs; }
-    static SimpleArray<SimpleArray<GlyphLine>> BreakLines(const SimpleArray<Paragraph>& paragraphs,
-                                                          float width,
-                                                          TextAlign align,
-                                                          TextWrap wrap);
-#endif
-
-#ifdef WITH_RIVE_LAYOUT
-    void markLayoutNodeDirty();
+    const std::vector<TextValueRun*>& runs() const { return m_allRuns; }
+    static SimpleArray<SimpleArray<GlyphLine>> BreakLines(
+        const SimpleArray<Paragraph>& paragraphs,
+        float width,
+        TextAlign align,
+        TextWrap wrap);
+    const std::vector<TextStylePaint*>& textStylePaints()
+    {
+        return m_textStylePaints;
+    }
 #endif
 
     bool haveModifiers() const
@@ -220,10 +240,19 @@ public:
 #endif
     }
 #ifdef TESTING
-    const std::vector<OrderedLine>& orderedLines() const { return m_orderedLines; }
-    const std::vector<TextModifierGroup*>& modifierGroups() const { return m_modifierGroups; }
+    const std::vector<OrderedLine>& orderedLines() const
+    {
+        return m_orderedLines;
+    }
+    const std::vector<TextModifierGroup*>& modifierGroups() const
+    {
+        return m_modifierGroups;
+    }
     const SimpleArray<Paragraph>& shape() const { return m_shape; }
-    const std::vector<Unichar>& unichars() const { return m_styledText.unichars(); }
+    const std::vector<Unichar>& unichars() const
+    {
+        return m_styledText.unichars();
+    }
 #endif
 
 protected:
@@ -240,7 +269,9 @@ private:
 #ifdef WITH_RIVE_TEXT
     void updateOriginWorldTransform();
     std::vector<TextValueRun*> m_runs;
-    std::vector<TextStyle*> m_renderStyles;
+    std::vector<TextValueRun*> m_allRuns;
+    std::vector<TextStylePaint*> m_renderStyles;
+    std::vector<TextDrawCommand> m_drawCommands;
     SimpleArray<Paragraph> m_shape;
     SimpleArray<Paragraph> m_modifierShape;
     SimpleArray<SimpleArray<GlyphLine>> m_lines;
@@ -248,20 +279,34 @@ private:
     // Runs ordered by paragraph line.
     std::vector<OrderedLine> m_orderedLines;
     GlyphRun m_ellipsisRun;
-    rcp<RenderPath> m_clipRenderPath;
+    RawPath m_clipRect;
+    ShapePaintPath m_clipPath;
     AABB m_bounds;
     std::vector<TextModifierGroup*> m_modifierGroups;
 
     StyledText m_styledText;
     StyledText m_modifierStyledText;
-
     GlyphLookup m_glyphLookup;
+    std::vector<TextStylePaint*> m_textStylePaints;
+
+    void clearRenderStyles();
+    void drawColorGlyph(Renderer* renderer,
+                        const TextDrawCommand::ColorGlyphInfo& info,
+                        const Mat2D& worldTransform);
+    std::
+        unordered_map<ColorGlyphCacheKey, rcp<RenderImage>, ColorGlyphCacheHash>
+            m_emojiImageCache;
+    TextBoundsInfo computeBoundsInfo();
+    LineIter shouldDrawLine(float y, float totalHeight, const GlyphLine& line);
+    void buildTextStylePaints();
+    std::vector<TextValueRunListener*> m_valueRunListeners;
+
 #endif
     float m_layoutWidth = NAN;
     float m_layoutHeight = NAN;
-    // If set to true, it means the parent LayoutComponent is set to hug
-    // and has called measureLayout() on this text component
-    bool m_layoutMeasured = false;
+    uint8_t m_layoutWidthScaleType = std::numeric_limits<uint8_t>::max();
+    uint8_t m_layoutHeightScaleType = std::numeric_limits<uint8_t>::max();
+    LayoutDirection m_layoutDirection = LayoutDirection::inherit;
     Vec2D measure(Vec2D maxSize);
 };
 } // namespace rive

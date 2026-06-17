@@ -488,16 +488,6 @@ struct RIVERENDERER_API FRiveCommandBuilder
         return CurrentRequestId;
     }
 
-    uint64_t ClearViewModelList(rive::ViewModelInstanceHandle ViewModel,
-                                const FString& Path)
-    {
-        FTCHARToUTF8 ConvertPath(*Path);
-        CommandQueue->requestViewModelInstanceListClear(ViewModel,
-                                                        ConvertPath.Get(),
-                                                        ++CurrentRequestId);
-        return CurrentRequestId;
-    }
-
     uint64_t RemoveViewModelList(
         rive::ViewModelInstanceHandle ViewModel,
         const FString& Path,

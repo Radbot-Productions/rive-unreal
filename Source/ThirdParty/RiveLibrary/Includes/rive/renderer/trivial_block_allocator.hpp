@@ -15,9 +15,11 @@ namespace rive
 class TrivialBlockAllocator
 {
 public:
-    TrivialBlockAllocator(size_t initialBlockSize) : m_initialBlockSize(initialBlockSize)
+    TrivialBlockAllocator(size_t initialBlockSize) :
+        m_initialBlockSize(initialBlockSize)
     {
-        m_blocks.push_back(std::unique_ptr<char[]>(new char[m_initialBlockSize]));
+        m_blocks.push_back(
+            std::unique_ptr<char[]>(new char[m_initialBlockSize]));
         reset();
     }
 
@@ -32,26 +34,30 @@ public:
 
     template <size_t AlignmentInBytes = 8> void* alloc(size_t sizeInBytes)
     {
-        uintptr_t start = reinterpret_cast<uintptr_t>(m_blocks.back().get()) + m_currentBlockUsage;
-        size_t alignmentPad = math::round_up_to_multiple_of<AlignmentInBytes>(start) - start;
+        uintptr_t start = reinterpret_cast<uintptr_t>(m_blocks.back().get()) +
+                          m_currentBlockUsage;
+        size_t alignmentPad =
+            math::round_up_to_multiple_of<AlignmentInBytes>(start) - start;
 
-        // Ensure there is room for this allocation in our newest block, pushing a new one if
-        // needed.
-        if (m_currentBlockUsage + alignmentPad + sizeInBytes > m_currentBlockSize)
+        // Ensure there is room for this allocation in our newest block, pushing
+        // a new one if needed.
+        if (m_currentBlockUsage + alignmentPad + sizeInBytes >
+            m_currentBlockSize)
         {
             // Grow with a fibonacci function.
             size_t fib = m_fibMinus2 + m_fibMinus1;
             m_fibMinus2 = m_fibMinus1;
             m_fibMinus1 = fib;
 
-            size_t blockSize =
-                std::max(fib * m_initialBlockSize, sizeInBytes + AlignmentInBytes - 1);
+            size_t blockSize = std::max(fib * m_initialBlockSize,
+                                        sizeInBytes + AlignmentInBytes - 1);
             m_blocks.push_back(std::unique_ptr<char[]>(new char[blockSize]));
             m_currentBlockSize = blockSize;
             m_currentBlockUsage = 0;
 
             start = reinterpret_cast<uintptr_t>(m_blocks.back().get());
-            alignmentPad = math::round_up_to_multiple_of<AlignmentInBytes>(start) - start;
+            alignmentPad =
+                math::round_up_to_multiple_of<AlignmentInBytes>(start) - start;
         }
 
         char* ret = &m_blocks.back()[m_currentBlockUsage + alignmentPad];
@@ -69,10 +75,18 @@ public:
 
     template <typename T, typename... Args> T* make(Args&&... args)
     {
-        // We don't call destructors on objects that get allocated here. We just free the blocks
-        // at the end. So objects must be trivially destructible.
+        // We don't call destructors on objects that get allocated here. We just
+        // free the blocks at the end. So objects must be trivially
+        // destructible.
         static_assert(std::is_trivially_destructible<T>::value);
-        return new (alloc<alignof(T)>(sizeof(T))) T(std::forward<Args>(args)...);
+        return new (alloc<alignof(T)>(sizeof(T)))
+            T(std::forward<Args>(args)...);
+    }
+
+    template <typename T> T* makePODArray(size_t count)
+    {
+        static_assert(std::is_pod<T>::value);
+        return reinterpret_cast<T*>(alloc<alignof(T)>(count * sizeof(T)));
     }
 
 private:
@@ -94,11 +108,14 @@ class TrivialArrayAllocator : private TrivialBlockAllocator
     static_assert(std::is_pod<T>::value);
 
 public:
-    TrivialArrayAllocator(size_t initialCount) : TrivialBlockAllocator(initialCount * sizeof(T)) {}
+    TrivialArrayAllocator(size_t initialCount) :
+        TrivialBlockAllocator(initialCount * sizeof(T))
+    {}
 
     T* alloc(size_t count)
     {
-        return reinterpret_cast<T*>(TrivialBlockAllocator::alloc(count * sizeof(T)));
+        return reinterpret_cast<T*>(
+            TrivialBlockAllocator::alloc(count * sizeof(T)));
     }
 
     void rewindLastAllocation(size_t rewindCount)
@@ -122,15 +139,22 @@ public:
 
     bool empty() const { return count() == 0; }
 
-    T& tail() const
+    T* tail() const
     {
         assert(!empty());
-        return m_tail->data;
+        return m_tail;
     }
 
-    template <typename... Args> T& emplace_back(TrivialBlockAllocator& allocator, Args... args)
+    T* head() const
     {
-        Node* node = allocator.make<Node>(std::forward<Args>(args)...);
+        assert(!empty());
+        return m_head;
+    }
+
+    template <typename... Args>
+    T* emplace_back(TrivialBlockAllocator& allocator, Args... args)
+    {
+        T* node = allocator.make<T>(std::forward<Args>(args)...);
         assert(static_cast<bool>(m_head) == static_cast<bool>(m_tail));
         if (m_head == nullptr)
         {
@@ -142,7 +166,7 @@ public:
         }
         m_tail = node;
         ++m_count;
-        return m_tail->data;
+        return m_tail;
     }
 
     void reset()
@@ -152,23 +176,19 @@ public:
         m_count = 0;
     }
 
-    struct Node
-    {
-        template <typename... Args> Node(Args... args) : data(std::forward<Args>(args)...) {}
-        T data;
-        Node* next = nullptr;
-    };
-
     template <typename U> class Iter
     {
     public:
-        Iter(Node* current) : m_current(current) {}
-        bool operator!=(const Iter& other) const { return m_current != other.m_current; }
+        Iter(T* current) : m_current(current) {}
+        bool operator!=(const Iter& other) const
+        {
+            return m_current != other.m_current;
+        }
         void operator++() { m_current = m_current->next; }
-        U& operator*() { return m_current->data; }
+        U& operator*() { return *m_current; }
 
     private:
-        Node* m_current;
+        const T* m_current;
     };
     Iter<T> begin() { return {m_head}; }
     Iter<T> end() { return {nullptr}; }
@@ -176,8 +196,8 @@ public:
     Iter<const T> end() const { return {nullptr}; }
 
 private:
-    Node* m_head = nullptr;
-    Node* m_tail = nullptr;
+    T* m_head = nullptr;
+    T* m_tail = nullptr;
     size_t m_count = 0;
 };
 

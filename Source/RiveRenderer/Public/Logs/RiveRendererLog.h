@@ -24,13 +24,20 @@ public:
     }
     void UnIndent()
     {
+        if (IndentLevel <= 0 || IndentStr.Len() < SpacesPerIndent + 1)
+        {
+            IndentLevel = 0;
+            IndentStr.Reset();
+            return;
+        }
+
         --IndentLevel;
         IndentStr.RemoveAt(IndentStr.Len() - SpacesPerIndent - 1,
                            SpacesPerIndent + 1);
     }
     static FDebugLogger& Get()
     {
-        static FDebugLogger Logger = {};
+        static thread_local FDebugLogger Logger = {};
         return Logger;
     }
 

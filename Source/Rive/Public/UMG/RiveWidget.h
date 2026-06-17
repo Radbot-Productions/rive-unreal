@@ -32,6 +32,7 @@ class RIVE_API URiveWidget : public UUserWidget
 
     GENERATED_BODY()
 
+public:
     virtual ~URiveWidget() override;
 
 protected:
