@@ -127,9 +127,26 @@ void FRiveCommandBuilder::DrawArtboard(const FDrawArtboardCommand& DrawCommand,
     const auto Alignment = RiveAlignementToAlignment(DrawCommand.Alignment);
     const auto Fit = RiveFitTypeToFit(DrawCommand.FitType);
     const auto Frame = AABBFromAlignmentBox(DrawCommand.AlignmentBox);
+    const auto ScaleFactor =
+        DrawCommand.ScaleFactor > 0.0f ? DrawCommand.ScaleFactor : 1.0f;
+
+    if (Fit == rive::Fit::layout)
+    {
+        const auto FrameSize = DrawCommand.AlignmentBox.GetSize();
+        if (FrameSize.X > 0.0f && FrameSize.Y > 0.0f)
+        {
+            ArtboardInstance->width(FrameSize.X / ScaleFactor);
+            ArtboardInstance->height(FrameSize.Y / ScaleFactor);
+            ArtboardInstance->advance(0);
+        }
+    }
 
     Renderer->save();
-    Renderer->align(Fit, Alignment, Frame, ArtboardInstance->bounds());
+    Renderer->align(Fit,
+                    Alignment,
+                    Frame,
+                    ArtboardInstance->bounds(),
+                    ScaleFactor);
     ArtboardInstance->draw(Renderer);
     Renderer->restore();
 }

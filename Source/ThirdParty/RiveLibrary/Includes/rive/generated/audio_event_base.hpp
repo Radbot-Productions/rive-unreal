@@ -12,14 +12,15 @@ protected:
 public:
     static const uint16_t typeKey = 407;
 
-    /// Helper to quickly determine if a core object extends another without RTTI
-    /// at runtime.
+    /// Helper to quickly determine if a core object extends another without
+    /// RTTI at runtime.
     bool isTypeOf(uint16_t typeKey) const override
     {
         switch (typeKey)
         {
             case AudioEventBase::typeKey:
             case EventBase::typeKey:
+            case CustomPropertyGroupBase::typeKey:
             case ContainerComponentBase::typeKey:
             case ComponentBase::typeKey:
                 return true;
@@ -32,7 +33,7 @@ public:
 
     static const uint16_t assetIdPropertyKey = 408;
 
-private:
+protected:
     uint32_t m_AssetId = -1;
 
 public:

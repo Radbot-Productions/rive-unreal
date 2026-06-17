@@ -5,12 +5,7 @@
 namespace rive
 {
 class TransitionValueColorComparator : public TransitionValueColorComparatorBase
-{
-public:
-    bool compare(TransitionComparator* comparand,
-                 TransitionConditionOp operation,
-                 const StateMachineInstance* stateMachineInstance) override;
-};
+{};
 } // namespace rive
 
 #endif

@@ -8,12 +8,16 @@ namespace rive
 class DataConverterGroupItem : public DataConverterGroupItemBase
 {
 public:
+    ~DataConverterGroupItem();
     StatusCode import(ImportStack& importStack) override;
     DataConverter* converter() const { return m_dataConverter; };
     void converter(DataConverter* value) { m_dataConverter = value; };
+    void ownsConverter(bool value) { m_ownsConverter = value; };
+    Core* clone() const override;
 
 protected:
-    DataConverter* m_dataConverter;
+    DataConverter* m_dataConverter = nullptr;
+    bool m_ownsConverter = false;
 };
 } // namespace rive
 

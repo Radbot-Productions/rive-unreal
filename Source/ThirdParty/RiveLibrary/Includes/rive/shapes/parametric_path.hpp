@@ -11,7 +11,10 @@ public:
                         LayoutMeasureMode widthMode,
                         float height,
                         LayoutMeasureMode heightMode) override;
-    void controlSize(Vec2D size) override;
+    void controlSize(Vec2D size,
+                     LayoutScaleType widthScaleType,
+                     LayoutScaleType heightScaleType,
+                     LayoutDirection direction) override;
     void markPathDirty(bool sendToLayout = true) override;
 
 protected:

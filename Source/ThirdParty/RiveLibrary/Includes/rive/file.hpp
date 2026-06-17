@@ -5,23 +5,41 @@
 #include "rive/backboard.hpp"
 #include "rive/factory.hpp"
 #include "rive/file_asset_loader.hpp"
+#include "rive/assets/manifest_asset.hpp"
 #include "rive/viewmodel/data_enum.hpp"
 #include "rive/viewmodel/viewmodel_component.hpp"
 #include "rive/viewmodel/viewmodel_instance.hpp"
 #include "rive/viewmodel/viewmodel_instance_value.hpp"
 #include "rive/viewmodel/viewmodel_instance_viewmodel.hpp"
 #include "rive/viewmodel/viewmodel_instance_list_item.hpp"
+#include "rive/animation/keyframe_interpolator.hpp"
+#include "rive/data_bind/converters/data_converter.hpp"
+#include "rive/refcnt.hpp"
+#include "rive/data_resolver.hpp"
 #include <vector>
 #include <set>
+#include <unordered_map>
+
+#ifdef WITH_RIVE_SCRIPTING
+struct lua_State;
+#endif
 
 ///
 /// Default namespace for Rive Cpp runtime code.
 ///
 namespace rive
 {
+#ifdef WITH_RIVE_TOOLS
+class ViewModelInstance;
+#endif
 class BinaryReader;
+class DataBind;
 class RuntimeHeader;
 class Factory;
+class ScrollPhysics;
+class ViewModelRuntime;
+class BindableArtboard;
+class ScriptingVM;
 
 ///
 /// Tracks the success/failure result when importing a Rive file.
@@ -36,22 +54,44 @@ enum class ImportResult
     malformed
 };
 
+#ifdef WITH_RIVE_TOOLS
+///
+/// Callback interface for registering view model instances (used by the
+/// editor). Implemented in rive_binding to store instances in a map keyed by
+/// File.
+///
+class ViewModelInstanceRegistrar
+{
+public:
+    virtual ~ViewModelInstanceRegistrar() = default;
+    virtual void registerInstance(ViewModelInstance* ptr,
+                                  rcp<ViewModelInstance> ref) = 0;
+    virtual bool contains(ViewModelInstance* ptr) const = 0;
+    virtual void clear() = 0;
+};
+#endif
+
 ///
 /// A Rive file.
 ///
-class File
+class File : public RefCnt<File>
 {
 public:
     /// Major version number supported by the runtime.
     static const int majorVersion = 7;
     /// Minor version number supported by the runtime.
     static const int minorVersion = 0;
+    /// deterministicMode sets a static seed for randomization and uses
+    /// timestamps for scrolling.
+    static bool deterministicMode;
 
-    File(Factory*, FileAssetLoader*);
+    File(Factory*, rcp<FileAssetLoader>);
 
 public:
     ~File();
-
+#if defined(DEBUG)
+    static size_t debugTotalFileCount;
+#endif
     ///
     /// Imports a Rive file from a binary buffer.
     /// @param data the raw date of the file.
@@ -59,10 +99,20 @@ public:
     /// @param assetLoader is an optional helper to load assets which
     /// cannot be found in-band.
     /// @returns a pointer to the file, or null on failure.
-    static std::unique_ptr<File> import(Span<const uint8_t> data,
-                                        Factory*,
-                                        ImportResult* result = nullptr,
-                                        FileAssetLoader* assetLoader = nullptr);
+    static rcp<File> import(Span<const uint8_t> data,
+                            Factory* factory,
+                            ImportResult* result = nullptr,
+                            FileAssetLoader* assetLoader = nullptr,
+                            ScriptingVM* vm = nullptr)
+    {
+        return import(data, factory, result, ref_rcp(assetLoader), vm);
+    }
+
+    static rcp<File> import(Span<const uint8_t> data,
+                            Factory*,
+                            ImportResult* result,
+                            rcp<FileAssetLoader> assetLoader,
+                            ScriptingVM* vm = nullptr);
 
     /// @returns the file's backboard. All files have exactly one backboard.
     Backboard* backboard() const { return m_backboard; }
@@ -71,12 +121,15 @@ public:
     size_t artboardCount() const { return m_artboards.size(); }
     std::string artboardNameAt(size_t index) const;
 
-    const std::vector<FileAsset*>& assets() const;
+    Span<const rcp<FileAsset>> assets() const;
 
     // Instances
     std::unique_ptr<ArtboardInstance> artboardDefault() const;
     std::unique_ptr<ArtboardInstance> artboardAt(size_t index) const;
     std::unique_ptr<ArtboardInstance> artboardNamed(std::string name) const;
+    rcp<BindableArtboard> bindableArtboardNamed(std::string name) const;
+    rcp<BindableArtboard> bindableArtboardDefault() const;
+    rcp<BindableArtboard> internalBindableArtboardFromArtboard(Artboard*) const;
 
     Artboard* artboard() const;
 
@@ -88,25 +141,90 @@ public:
     /// index is out of range.
     Artboard* artboard(size_t index) const;
 
-    /// @returns a view model instance of the view model with the specified name.
-    ViewModelInstance* createViewModelInstance(std::string name);
+    /// @returns a view model instance of the view model with the specified
+    /// name.
+    rcp<ViewModelInstance> createViewModelInstance(std::string name) const;
 
     /// @returns a view model instance attached to the artboard if it exists.
-    ViewModelInstance* createViewModelInstance(Artboard* artboard);
+    rcp<ViewModelInstance> createViewModelInstance(Artboard* artboard) const;
 
     /// @returns a view model instance of the viewModel.
-    ViewModelInstance* createViewModelInstance(ViewModel* viewModel);
+    rcp<ViewModelInstance> createViewModelInstance(ViewModel* viewModel) const;
 
-    /// @returns a view model instance of the viewModel by name and instance name.
-    ViewModelInstance* createViewModelInstance(std::string name, std::string instanceName);
+    /// @returns the default view model instance of the viewModel, or returns an
+    /// empty one if there is no default.
+    rcp<ViewModelInstance> createDefaultViewModelInstance(
+        ViewModel* viewModel) const;
+
+    /// @returns the default view model instance of the viewModel, or returns an
+    /// empty one if there is no default.
+    rcp<ViewModelInstance> createDefaultViewModelInstance(
+        Artboard* artboard) const;
+
+    /// @returns a view model instance of the viewModel by name and instance
+    /// name.
+    rcp<ViewModelInstance> createViewModelInstance(
+        const std::string& name,
+        const std::string& instanceName) const;
 
     /// @returns a view model instance of the viewModel by their indexes.
-    ViewModelInstance* createViewModelInstance(size_t index, size_t instanceIndex);
+    rcp<ViewModelInstance> createViewModelInstance(size_t index,
+                                                   size_t instanceIndex) const;
 
+    size_t viewModelCount() const { return m_ViewModels.size(); }
     ViewModel* viewModel(std::string name);
-    ViewModelInstanceListItem* viewModelInstanceListItem(ViewModelInstance* viewModelInstance);
-    ViewModelInstanceListItem* viewModelInstanceListItem(ViewModelInstance* viewModelInstance,
-                                                         Artboard* artboard);
+    ViewModel* viewModel(size_t index);
+    ViewModelRuntime* defaultArtboardViewModel(Artboard* artboard) const;
+    ViewModelRuntime* viewModelByIndex(size_t index) const;
+    ViewModelRuntime* viewModelByName(std::string name) const;
+    ViewModelInstanceListItem* viewModelInstanceListItem(
+        rcp<ViewModelInstance> viewModelInstance);
+    ViewModelInstanceListItem* viewModelInstanceListItem(
+        rcp<ViewModelInstance> viewModelInstance,
+        Artboard* artboard);
+    void completeViewModelInstance(
+        rcp<ViewModelInstance> viewModelInstance,
+        std::unordered_map<ViewModelInstance*, rcp<ViewModelInstance>>&
+            instancesMap) const;
+    void completeViewModelInstance(
+        rcp<ViewModelInstance> viewModelInstance) const;
+    const std::vector<DataEnum*>& enums() const;
+    rcp<FileAsset> asset(size_t index);
+
+    std::vector<Artboard*> artboards() { return m_artboards; };
+
+    bool hasAudio() const { return m_hasAudio; };
+    void addFileViewModelInstance(ViewModelInstance* viewModelInstance);
+
+    // When the runtime is hosted in the editor, we get a pointer
+    // to the VM that we can use. If this is nullptr, we can assume
+    // we are running in the runtime and should instance our own VMs
+    // and pass them down to the root
+#ifdef WITH_RIVE_SCRIPTING
+    /// Sets or replaces the ScriptingVM. Takes shared ownership via rcp.
+    void setScriptingVM(rcp<ScriptingVM> vm);
+
+    /// Returns the ScriptingVM, or nullptr if no VM is set.
+    ScriptingVM* scriptingVM() { return m_scriptingVM.get(); }
+
+    /// Returns the lua_State from the current VM, or nullptr if no VM is set.
+    /// Do not hold a reference to this as the lifecycle is owned by the
+    /// ScriptingVM owning it.
+    lua_State* scriptingState();
+#ifdef WITH_RIVE_TOOLS
+    void clearScriptingVM() { cleanupScriptingVM(); }
+    bool hasVM() { return m_scriptingVM != nullptr; }
+#endif
+#endif
+
+    DataResolver* dataResolver()
+    {
+        if (m_manifest)
+        {
+            return m_manifest.get()->as<ManifestAsset>();
+        }
+        return nullptr;
+    }
 
 #ifdef WITH_RIVE_TOOLS
     /// Strips FileAssetContents for FileAssets of given typeKeys.
@@ -114,9 +232,24 @@ public:
     /// @param result is an optional status result.
     /// @returns the data buffer of the file with the FileAssetContents objects
     /// stripped out.
-    static const std::vector<uint8_t> stripAssets(Span<const uint8_t> data,
-                                                  std::set<uint16_t> typeKeys,
-                                                  ImportResult* result = nullptr);
+    static const std::vector<uint8_t> stripAssets(
+        Span<const uint8_t> data,
+        std::set<uint16_t> typeKeys,
+        ImportResult* result = nullptr);
+#endif
+
+#ifdef TESTING
+    FileAssetLoader* testing_getAssetLoader() const
+    {
+        return m_assetLoader.get();
+    }
+#endif
+#ifdef WITH_RIVE_TOOLS
+    void setViewModelInstanceRegistrar(ViewModelInstanceRegistrar* registrar);
+    void registerViewModelInstance(ViewModelInstance* ptr,
+                                   rcp<ViewModelInstance> ref) const;
+    bool containsViewModelInstance(ViewModelInstance* ptr) const;
+    void clearRuntimeViewModelInstances();
 #endif
 
 private:
@@ -127,23 +260,57 @@ private:
     Backboard* m_backboard;
 
     /// We just keep these alive for the life of this File
-    std::vector<FileAsset*> m_fileAssets;
+    std::vector<rcp<FileAsset>> m_fileAssets;
+
+    std::vector<DataConverter*> m_DataConverters;
+
+    std::vector<KeyFrameInterpolator*> m_keyframeInterpolators;
+    std::vector<ScrollPhysics*> m_scrollPhysics;
 
     /// List of artboards in the file. Each artboard encapsulates a set of
     /// Rive components and animations.
     std::vector<Artboard*> m_artboards;
 
+    /// List of view models in the file. They may outlive the file if viewmodel
+    /// instances are still needed after the file is destroyed
     std::vector<ViewModel*> m_ViewModels;
+
+    /// List of view models instances in the file. We keep this list to keep
+    /// them alive during the lifetime of this file. This list does not hold a
+    /// reference to instances created by users.
+    std::vector<rcp<ViewModelInstance>> m_ViewModelInstances;
+
+    mutable std::vector<rcp<ViewModelRuntime>> m_viewModelRuntimes;
     std::vector<DataEnum*> m_Enums;
 
     Factory* m_factory;
 
     /// The helper used to load assets when they're not provided in-band
     /// with the file.
-    FileAssetLoader* m_assetLoader;
+    rcp<FileAssetLoader> m_assetLoader;
 
-    void completeViewModelInstance(ViewModelInstance* viewModelInstance);
-    ViewModelInstance* copyViewModelInstance(ViewModelInstance* viewModelInstance);
+#ifdef WITH_RIVE_SCRIPTING
+    rcp<ScriptingVM> m_scriptingVM;
+    void makeScriptingVM();
+    void cleanupScriptingVM();
+    void registerScripts();
+#endif
+
+    rcp<ViewModelInstance> copyViewModelInstance(
+        ViewModelInstance* viewModelInstance,
+        std::unordered_map<ViewModelInstance*, rcp<ViewModelInstance>>&
+            instancesMap) const;
+
+    rcp<ViewModelRuntime> createViewModelRuntime(ViewModel* viewModel) const;
+
+    uint32_t findViewModelId(ViewModel* search) const;
+#ifdef WITH_RIVE_TOOLS
+    mutable ViewModelInstanceRegistrar* m_viewModelInstanceRegistrar = nullptr;
+#endif
+
+    rcp<FileAsset> m_manifest = nullptr;
+
+    bool m_hasAudio = false;
 };
 } // namespace rive
 #endif

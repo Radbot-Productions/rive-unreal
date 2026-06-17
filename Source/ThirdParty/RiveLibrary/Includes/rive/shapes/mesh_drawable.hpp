@@ -7,6 +7,11 @@
 namespace rive
 {
 class RenderImage;
+enum class MeshType : uint8_t
+{
+    vertex = 0,
+    nslice = 1,
+};
 class MeshDrawable
 {
 protected:
@@ -17,10 +22,12 @@ protected:
     rcp<RenderBuffer> m_UVRenderBuffer;
 
 public:
+    virtual MeshType type() { return MeshType::vertex; }
     virtual ~MeshDrawable() = default;
     virtual void onAssetLoaded(RenderImage* image) = 0;
     virtual void draw(Renderer* renderer,
                       const RenderImage* image,
+                      ImageSampler,
                       BlendMode blendMode,
                       float opacity) = 0;
 };

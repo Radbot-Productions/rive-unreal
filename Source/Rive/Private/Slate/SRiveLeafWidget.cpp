@@ -26,13 +26,23 @@
 
 #include "Rendering/DrawElements.h"
 #include "rive/command_server.hpp"
+#include "rive/generated/layout/layout_component_style_base.hpp"
+#include "rive/intrinsically_sizeable.hpp"
+#include "rive/layout_component.hpp"
+#include "rive/node.hpp"
 #include "Rive/RiveArtboard.h"
 #include "Rive/RiveDescriptor.h"
 #include "rive/renderer/render_context.hpp"
 #include "rive/renderer/rive_renderer.hpp"
+#include "rive/shapes/image.hpp"
+#include "rive/shapes/parametric_path.hpp"
+#include "rive/shapes/shape.hpp"
+#include "rive/text/text.hpp"
+#include "rive/text/text_value_run.hpp"
 #include "Streaming/TextureMipDataProvider.h"
 
 #include <IRenderCaptureProvider.h>
+#include <atomic>
 
 DECLARE_GPU_STAT_NAMED(FRiveRendererDrawElementDraw,
                        TEXT("FRiveRendererDrawElement::Draw_RenderThread"));
@@ -40,6 +50,207 @@ DECLARE_GPU_STAT_NAMED(FRiveRendererDrawElementDraw,
 FORCEINLINE rive::AABB AABBForSlateRect(const FSlateRect& Rect)
 {
     return rive::AABB(Rect.Left, Rect.Top, Rect.Right, Rect.Bottom);
+}
+
+const TCHAR* LayoutScaleTypeToString(rive::LayoutScaleType ScaleType)
+{
+    switch (ScaleType)
+    {
+        case rive::LayoutScaleType::fixed:
+            return TEXT("fixed");
+        case rive::LayoutScaleType::fill:
+            return TEXT("fill");
+        case rive::LayoutScaleType::hug:
+            return TEXT("hug");
+    }
+    return TEXT("unknown");
+}
+
+const TCHAR* TextSizingToString(rive::TextSizing Sizing)
+{
+    switch (Sizing)
+    {
+        case rive::TextSizing::autoWidth:
+            return TEXT("autoWidth");
+        case rive::TextSizing::autoHeight:
+            return TEXT("autoHeight");
+        case rive::TextSizing::fixed:
+            return TEXT("fixed");
+    }
+    return TEXT("unknown");
+}
+
+void LogRiveLayoutDiagnostics(rive::ArtboardInstance* ArtboardInstance)
+{
+    static std::atomic<int32> RemainingDumps{8};
+    if (RemainingDumps.fetch_sub(1) <= 0)
+    {
+        return;
+    }
+
+    const rive::AABB Bounds = ArtboardInstance->bounds();
+    const rive::AABB LayoutBounds = ArtboardInstance->layoutBounds();
+    UE_LOG(LogRive,
+           Warning,
+           TEXT("RiveLayoutDiag artboard=%hs width=%.2f height=%.2f "
+                "bounds=(%.2f %.2f %.2f %.2f) layoutBounds=(%.2f %.2f %.2f "
+                "%.2f)"),
+           ArtboardInstance->name().c_str(),
+           ArtboardInstance->width(),
+           ArtboardInstance->height(),
+           Bounds.left(),
+           Bounds.top(),
+           Bounds.right(),
+           Bounds.bottom(),
+           LayoutBounds.left(),
+           LayoutBounds.top(),
+           LayoutBounds.right(),
+           LayoutBounds.bottom());
+
+    const size_t LayoutCount = ArtboardInstance->count<rive::LayoutComponent>();
+    for (size_t Index = 0; Index < LayoutCount; ++Index)
+    {
+        rive::LayoutComponent* Layout =
+            ArtboardInstance->objectAt<rive::LayoutComponent>(Index);
+        if (!Layout)
+        {
+            continue;
+        }
+
+        UE_LOG(LogRive,
+               Warning,
+               TEXT("RiveLayoutDiag layout[%llu] name=%hs parent=%hs "
+                    "x=%.2f y=%.2f w=%.2f h=%.2f"),
+               static_cast<unsigned long long>(Index),
+               Layout->name().c_str(),
+               Layout->parent() ? Layout->parent()->name().c_str() : "",
+               Layout->layoutX(),
+               Layout->layoutY(),
+               Layout->layoutWidth(),
+               Layout->layoutHeight());
+
+        if (rive::LayoutComponentStyle* Style = Layout->style())
+        {
+            const rive::LayoutComponentStyleBase* StyleBase =
+                reinterpret_cast<const rive::LayoutComponentStyleBase*>(Style);
+            UE_LOG(LogRive,
+                   Warning,
+                   TEXT("RiveLayoutDiag layout[%llu] style width=%.2f "
+                        "height=%.2f widthUnits=%d heightUnits=%d "
+                        "widthScale=%s heightScale=%s intrinsic=%d flex=%.2f "
+                        "grow=%.2f shrink=%.2f basis=%.2f basisUnits=%u "
+                        "aspect=%.2f"),
+                   static_cast<unsigned long long>(Index),
+                   Layout->width(),
+                   Layout->height(),
+                   static_cast<int>(StyleBase->widthUnitsValue()),
+                   static_cast<int>(StyleBase->heightUnitsValue()),
+                   LayoutScaleTypeToString(static_cast<rive::LayoutScaleType>(
+                       StyleBase->layoutWidthScaleType())),
+                   LayoutScaleTypeToString(static_cast<rive::LayoutScaleType>(
+                       StyleBase->layoutHeightScaleType())),
+                   StyleBase->intrinsicallySizedValue(),
+                   StyleBase->flex(),
+                   StyleBase->flexGrow(),
+                   StyleBase->flexShrink(),
+                   StyleBase->flexBasis(),
+                   StyleBase->flexBasisUnitsValue(),
+                   StyleBase->aspectRatio());
+        }
+
+        const rive::Vec2D LayoutMeasureUndefined = Layout->measureLayout(
+            NAN,
+            rive::LayoutMeasureMode::undefined,
+            NAN,
+            rive::LayoutMeasureMode::undefined);
+        const rive::Vec2D LayoutMeasureAtMost = Layout->measureLayout(
+            Layout->layoutWidth(),
+            rive::LayoutMeasureMode::atMost,
+            Layout->layoutHeight(),
+            rive::LayoutMeasureMode::atMost);
+        UE_LOG(LogRive,
+               Warning,
+               TEXT("RiveLayoutDiag layout[%llu] measure undefined=(%.2f "
+                    "%.2f) atMost=(%.2f %.2f)"),
+               static_cast<unsigned long long>(Index),
+               LayoutMeasureUndefined.x,
+               LayoutMeasureUndefined.y,
+               LayoutMeasureAtMost.x,
+               LayoutMeasureAtMost.y);
+
+        int32 ChildIndex = 0;
+        for (rive::Component* Child : Layout->children())
+        {
+            rive::IntrinsicallySizeable* Sizeable =
+                rive::IntrinsicallySizeable::from(Child);
+            const rive::Vec2D ChildMeasureUndefined =
+                Sizeable ? Sizeable->measureLayout(
+                               NAN,
+                               rive::LayoutMeasureMode::undefined,
+                               NAN,
+                               rive::LayoutMeasureMode::undefined)
+                         : rive::Vec2D();
+            const rive::Vec2D ChildMeasureAtMost =
+                Sizeable ? Sizeable->measureLayout(
+                               Layout->layoutWidth(),
+                               rive::LayoutMeasureMode::atMost,
+                               Layout->layoutHeight(),
+                               rive::LayoutMeasureMode::atMost)
+                         : rive::Vec2D();
+            const bool bIsLayout = Child->is<rive::LayoutComponent>();
+            const bool bIsShape = Child->is<rive::Shape>();
+            const bool bIsParametricPath = Child->is<rive::ParametricPath>();
+            const bool bIsImage = Child->is<rive::Image>();
+            const bool bIsNode = Child->is<rive::Node>();
+            UE_LOG(LogRive,
+                   Warning,
+                   TEXT("RiveLayoutDiag layout[%llu] child[%d] name=%hs "
+                        "type=%u layout=%d shape=%d path=%d image=%d node=%d "
+                        "sizeable=%d measureUndefined=(%.2f %.2f) "
+                        "measureAtMost=(%.2f %.2f)"),
+                   static_cast<unsigned long long>(Index),
+                   ChildIndex++,
+                   Child->name().c_str(),
+                   Child->coreType(),
+                   bIsLayout,
+                   bIsShape,
+                   bIsParametricPath,
+                   bIsImage,
+                   bIsNode,
+                   Sizeable != nullptr,
+                   ChildMeasureUndefined.x,
+                   ChildMeasureUndefined.y,
+                   ChildMeasureAtMost.x,
+                   ChildMeasureAtMost.y);
+        }
+    }
+
+    const size_t TextCount = ArtboardInstance->count<rive::Text>();
+    for (size_t Index = 0; Index < TextCount; ++Index)
+    {
+        rive::Text* Text = ArtboardInstance->objectAt<rive::Text>(Index);
+        if (!Text)
+        {
+            continue;
+        }
+        const rive::AABB TextBounds = Text->localBounds();
+        UE_LOG(LogRive,
+               Warning,
+               TEXT("RiveLayoutDiag text[%llu] name=%hs parent=%hs "
+                    "sizing=%s effective=%s effectiveW=%.2f effectiveH=%.2f "
+                    "bounds=(%.2f %.2f %.2f %.2f)"),
+               static_cast<unsigned long long>(Index),
+               Text->name().c_str(),
+               Text->parent() ? Text->parent()->name().c_str() : "",
+               TextSizingToString(Text->sizing()),
+               TextSizingToString(Text->effectiveSizing()),
+               Text->effectiveWidth(),
+               Text->effectiveHeight(),
+               TextBounds.left(),
+               TextBounds.top(),
+               TextBounds.right(),
+               TextBounds.bottom());
+    }
 }
 
 class FRiveRendererDrawElement : public ICustomSlateElement
@@ -192,6 +403,8 @@ public:
             return;
         }
 
+        ApplyHugTextStressTest(ArtboardInstance);
+
         auto Context = RiveRenderer->GetRenderContext();
         Context->beginFrame({
             .renderTargetWidth =
@@ -210,27 +423,19 @@ public:
         auto Renderer = MakeUnique<rive::RiveRenderer>(Context);
         Renderer->save();
         Renderer->clipPath(ClipRenderPath.get());
-        Renderer->align(Fit,
-                        Alignment,
-                        AABBForSlateRect(RenderBoundsLocal),
-                        ArtboardInstance->bounds(),
-                        TotalScale);
-        if (bDirty)
-        {
-            bDirty = false;
-            if (Fit == rive::Fit::layout)
-            {
-                ArtboardInstance->width(RenderBoundsLocal.GetSize().X /
-                                        TotalScale);
-                ArtboardInstance->height(RenderBoundsLocal.GetSize().Y /
-                                         TotalScale);
-            }
-            else
-            {
-                ArtboardInstance->resetSize();
-            }
 
-            // If we updated the size we need to advance for it to be applied
+        const bool bIsLayoutFit = Fit == rive::Fit::layout;
+        const bool bHasValidLayoutScale = TotalScale > 0.0f;
+        const FVector2f RenderSize = RenderBoundsLocal.GetSize();
+
+        if (bIsLayoutFit && bHasValidLayoutScale && RenderSize.X > 0.0f &&
+            RenderSize.Y > 0.0f)
+        {
+            ArtboardInstance->width(RenderSize.X / TotalScale);
+            ArtboardInstance->height(RenderSize.Y / TotalScale);
+
+            // Layout sizing can be overwritten by animation/state-machine
+            // updates, so apply it immediately before alignment and draw.
             if (auto NativeStateMachineHandle =
                     RiveArtboardLocal->GetStateMachineHandle();
                 NativeStateMachineHandle != RIVE_NULL_HANDLE)
@@ -241,7 +446,41 @@ public:
                     StateMachine->advanceAndApply(0);
                 }
             }
+            else
+            {
+                ArtboardInstance->advance(0);
+            }
+
+            bDirty = false;
         }
+        else if (bDirty)
+        {
+            bDirty = false;
+            ArtboardInstance->resetSize();
+
+            if (auto NativeStateMachineHandle =
+                    RiveArtboardLocal->GetStateMachineHandle();
+                NativeStateMachineHandle != RIVE_NULL_HANDLE)
+            {
+                if (auto StateMachine = CommandServer->getStateMachineInstance(
+                        NativeStateMachineHandle))
+                {
+                    StateMachine->advanceAndApply(0);
+                }
+            }
+            else
+            {
+                ArtboardInstance->advance(0);
+            }
+        }
+
+        LogRiveLayoutDiagnostics(ArtboardInstance);
+
+        Renderer->align(Fit,
+                        Alignment,
+                        AABBForSlateRect(RenderBoundsLocal),
+                        ArtboardInstance->bounds(),
+                        TotalScale);
         ArtboardInstance->draw(Renderer.Get());
         Renderer->restore();
 
@@ -303,6 +542,77 @@ public:
     void SetClipRect(const FSlateRect& InClipRect) { ClipRect = InClipRect; }
 
 private:
+    void ApplyHugTextStressTest(rive::ArtboardInstance* ArtboardInstance)
+    {
+        if (!bHugTextStressTestInitialized)
+        {
+            bHugTextStressTestInitialized = true;
+
+            if (ArtboardInstance == nullptr ||
+                ArtboardInstance->count<rive::TextValueRun>() != 2)
+            {
+                return;
+            }
+
+            rive::TextValueRun* FirstRun =
+                ArtboardInstance->objectAt<rive::TextValueRun>(0);
+            rive::TextValueRun* SecondRun =
+                ArtboardInstance->objectAt<rive::TextValueRun>(1);
+            if (FirstRun == nullptr || SecondRun == nullptr)
+            {
+                return;
+            }
+
+            const std::string CombinedText =
+                FirstRun->text() + " " + SecondRun->text();
+            bHugTextStressTestEnabled =
+                CombinedText.find("Test") != std::string::npos ||
+                CombinedText.find("Text") != std::string::npos;
+        }
+
+        if (!bHugTextStressTestEnabled)
+        {
+            return;
+        }
+
+        const double CurrentTime = FPlatformTime::Seconds();
+        if (CurrentTime < NextHugTextStressTime)
+        {
+            return;
+        }
+        NextHugTextStressTime = CurrentTime + 1.0;
+
+        static const char* LeftSamples[] = {
+            "Left",
+            "Test Test",
+            "Dynamic Left Text",
+            "Wide Left Text Test",
+            "L",
+        };
+        static const char* RightSamples[] = {
+            "Right",
+            "Text",
+            "Dynamic Right",
+            "Right Text Text Text",
+            "R",
+        };
+
+        rive::TextValueRun* FirstRun =
+            ArtboardInstance->objectAt<rive::TextValueRun>(0);
+        rive::TextValueRun* SecondRun =
+            ArtboardInstance->objectAt<rive::TextValueRun>(1);
+        if (FirstRun == nullptr || SecondRun == nullptr)
+        {
+            return;
+        }
+
+        const int32 SampleCount = UE_ARRAY_COUNT(LeftSamples);
+        const int32 SampleIndex = HugTextStressIndex++ % SampleCount;
+        FirstRun->text(LeftSamples[SampleIndex]);
+        SecondRun->text(RightSamples[SampleIndex]);
+        bDirty = true;
+    }
+
     FRiveRenderer* RiveRenderer = nullptr;
     rive::CommandServer* CommandServer = nullptr;
     TSharedPtr<FRiveRenderTarget> RenderTarget;
@@ -315,6 +625,10 @@ private:
     FSlateRect RenderBounds;
     FSlateRect ClipRect;
     bool bDirty = true;
+    bool bHugTextStressTestInitialized = false;
+    bool bHugTextStressTestEnabled = false;
+    double NextHugTextStressTime = 0.0;
+    int32 HugTextStressIndex = 0;
 };
 
 void SRiveLeafWidget::SetRiveDescriptor(const FRiveDescriptor& InDescriptor)

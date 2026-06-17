@@ -8,22 +8,14 @@
 namespace rive
 {
 class StateMachineInstance;
+class StateMachineLayerInstance;
 class TransitionComparator : public TransitionComparatorBase
 {
 public:
     StatusCode import(ImportStack& importStack) override;
-    virtual bool compare(TransitionComparator* comparand,
-                         TransitionConditionOp operation,
-                         const StateMachineInstance* stateMachineInstance);
 
-protected:
-    bool compareNumbers(float left, float right, TransitionConditionOp op);
-    bool compareBooleans(bool left, bool right, TransitionConditionOp op);
-    bool compareEnums(uint16_t left, uint16_t right, TransitionConditionOp op);
-    bool compareColors(int left, int right, TransitionConditionOp op);
-    bool compareStrings(std::string left, std::string right, TransitionConditionOp op);
-    bool compareTriggers(uint32_t left, uint32_t right, TransitionConditionOp op);
+    virtual void useInLayer(const StateMachineInstance* stateMachineInstance,
+                            StateMachineLayerInstance* layerInstance) const {};
 };
 } // namespace rive
-
 #endif

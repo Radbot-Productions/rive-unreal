@@ -14,6 +14,7 @@ class StateTransitionImporter;
 class TransitionCondition;
 class StateInstance;
 class StateMachineInstance;
+class StateMachineLayerInstance;
 class LinearAnimation;
 class LinearAnimationInstance;
 
@@ -46,8 +47,14 @@ public:
     const LayerState* stateTo() const { return m_StateTo; }
     inline KeyFrameInterpolator* interpolator() const { return m_Interpolator; }
 
-    inline uint32_t evaluatedRandomWeight() const { return m_EvaluatedRandomWeight; }
-    void evaluatedRandomWeight(uint32_t value) { m_EvaluatedRandomWeight = value; }
+    inline uint32_t evaluatedRandomWeight() const
+    {
+        return m_EvaluatedRandomWeight;
+    }
+    void evaluatedRandomWeight(uint32_t value)
+    {
+        m_EvaluatedRandomWeight = value;
+    }
 
     StatusCode onAddedDirty(CoreContext* context) override;
     StatusCode onAddedClean(CoreContext* context) override;
@@ -64,7 +71,7 @@ public:
     /// stateFrom with the given inputs.
     AllowTransition allowed(StateInstance* stateFrom,
                             StateMachineInstance* stateMachineInstance,
-                            bool ignoreTriggers) const;
+                            StateMachineLayerInstance* layerInstance) const;
 
     /// Whether the animation is held at exit or if it keeps advancing
     /// during mixing.
@@ -89,6 +96,13 @@ public:
                StateTransitionFlags::EnableEarlyExit;
     }
 
+    bool durationIsPercentage() const
+    {
+        return (transitionFlags() &
+                StateTransitionFlags::DurationIsPercentage) ==
+               StateTransitionFlags::DurationIsPercentage;
+    }
+
     StatusCode import(ImportStack& importStack) override;
 
     size_t conditionCount() const { return m_Conditions.size(); }
@@ -110,7 +124,8 @@ public:
     /// true if you want the returned time to be relative to the entire
     /// animation. Set absolute to false if you want it relative to the work
     /// area.
-    float exitTimeSeconds(const LayerState* stateFrom, bool absolute = false) const;
+    float exitTimeSeconds(const LayerState* stateFrom,
+                          bool absolute = false) const;
 
     /// Provide the animation instance to use for computing percentage
     /// durations for exit time.
@@ -119,12 +134,17 @@ public:
 
     /// Provide the animation to use for computing percentage durations for
     /// exit time.
-    virtual const LinearAnimation* exitTimeAnimation(const LayerState* from) const;
+    virtual const LinearAnimation* exitTimeAnimation(
+        const LayerState* from) const;
 
     /// Retruns true when we need to hold the exit time, also applies the
     /// correct time to the animation instance in the stateFrom, when
     /// applicable (when it's an AnimationState).
     bool applyExitCondition(StateInstance* stateFrom) const;
+
+    /// Marks any trigger based condition as used for this layer
+    void useLayerInConditions(StateMachineInstance* stateMachineInstance,
+                              StateMachineLayerInstance* layerInstance) const;
 };
 } // namespace rive
 

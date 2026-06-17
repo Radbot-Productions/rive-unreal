@@ -20,24 +20,32 @@ private:
 public:
     NestedStateMachine();
     ~NestedStateMachine() override;
-    bool advance(float elapsedSeconds) override;
+    bool advance(float elapsedSeconds, bool newFrame) override;
     void initializeAnimation(ArtboardInstance*) override;
     StateMachineInstance* stateMachineInstance();
 
-    HitResult pointerMove(Vec2D position);
-    HitResult pointerDown(Vec2D position);
-    HitResult pointerUp(Vec2D position);
-    HitResult pointerExit(Vec2D position);
-#ifdef WITH_RIVE_TOOLS
+    HitResult pointerMove(Vec2D position,
+                          float timeStamp = 0,
+                          int pointerId = 0);
+    HitResult pointerDown(Vec2D position, int pointerId = 0);
+    HitResult pointerUp(Vec2D position, int pointerId = 0);
+    HitResult pointerExit(Vec2D position, int pointerId = 0);
+    HitResult dragStart(Vec2D position, float timeStamp = 0, int pointerId = 0);
+    HitResult dragEnd(Vec2D position, float timeStamp = 0, int pointerId = 0);
+    bool tryChangeState();
     bool hitTest(Vec2D position) const;
-#endif
 
     void addNestedInput(NestedInput* input);
     size_t inputCount() { return m_nestedInputs.size(); }
     NestedInput* input(size_t index);
     NestedInput* input(std::string name);
-    void dataContextFromInstance(ViewModelInstance* viewModelInstance);
-    void dataContext(DataContext* dataContext);
+    void bindViewModelInstance(rcp<ViewModelInstance> viewModelInstance);
+    void dataContext(rcp<DataContext> dataContext);
+    void releaseDependencies() override
+    {
+        m_StateMachineInstance.reset(nullptr);
+    }
+    void clearDataContext();
 };
 } // namespace rive
 

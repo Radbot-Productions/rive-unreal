@@ -1,22 +1,33 @@
 #ifndef _RIVE_VIEW_MODEL_INSTANCE_TRIGGER_HPP_
 #define _RIVE_VIEW_MODEL_INSTANCE_TRIGGER_HPP_
 #include "rive/generated/viewmodel/viewmodel_instance_trigger_base.hpp"
+#include "rive/animation/state_machine_input_instance.hpp"
+#include "rive/data_bind/data_values/data_value_integer.hpp"
 #include <stdio.h>
 namespace rive
 {
 #ifdef WITH_RIVE_TOOLS
 class ViewModelInstanceTrigger;
-typedef void (*ViewModelTriggerChanged)(ViewModelInstanceTrigger* vmi, uint32_t value);
+typedef void (*ViewModelTriggerChanged)(ViewModelInstanceTrigger* vmi,
+                                        uint32_t value);
 #endif
 class ViewModelInstanceTrigger : public ViewModelInstanceTriggerBase
 {
 protected:
     void propertyValueChanged() override;
-#ifdef WITH_RIVE_TOOLS
+
 public:
-    void onChanged(ViewModelTriggerChanged callback) { m_changedCallback = callback; }
+    void advanced() override;
+#ifdef WITH_RIVE_TOOLS
+    void onChanged(ViewModelTriggerChanged callback)
+    {
+        m_changedCallback = callback;
+    }
     ViewModelTriggerChanged m_changedCallback = nullptr;
 #endif
+
+    void trigger() { propertyValue(propertyValue() + 1); }
+    void applyValue(DataValueInteger*);
 };
 } // namespace rive
 

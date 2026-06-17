@@ -14,142 +14,152 @@ namespace rive::gpu
 {
 class RenderContextGLImpl;
 
-class RenderTargetGL : public RenderTarget, public enable_lite_rtti<RenderTargetGL>
+class RenderTargetGL : public RenderTarget,
+                       public ENABLE_LITE_RTTI(RenderTargetGL)
 {
 public:
-    // Bind a framebuffer whose color attachment is the final rendering destination.
-    // When rendering to an external framebuffer, this is that same framebuffer.
-    // When rendering to a texture, it's an internal framebuffer that targets the texture.
+    // Bind a framebuffer whose color attachment is the final rendering
+    // destination. When rendering to an external framebuffer, this is that same
+    // framebuffer. When rendering to a texture, it's an internal framebuffer
+    // that targets the texture.
     virtual void bindDestinationFramebuffer(GLenum target) = 0;
 
-    // Ensures backing textures for the internal PLS planes are allocated.
-    // Does not allocate an offscreen target texture.
-    // Does not allocate an "scratchColor" texture if InterlockMode is experimentalAtomics.
-    virtual void allocateInternalPLSTextures(gpu::InterlockMode) = 0;
+    // Returns a texture handle that can be rendered to (e.g., for rendering via
+    // shader images, ANGLE_shader_pixel_local_storage, or
+    // EXT_multisampled_render_to_texture). When rendering to an external
+    // framebuffer, this is an internal texture allocation that the caller must
+    // blit back to the main framebuffer at the end of a render pass. Otherwise,
+    // this is the same target texture provided by the client.
+    virtual GLuint renderTexture() = 0;
 
-    // Specifies which PLS planes to enable when a render target is bound.
-    enum class DrawBufferMask
-    {
-        color = 1 << 0,
-        clip = 1 << 1,
-        scratchColor = 1 << 2,
-        coverage = 1 << 3,
+    // Binds a framebuffer with renderTexture() attached. When rendering to an
+    // external framebuffer, this is an internal FBO that the caller must blit
+    // back to the main framebuffer at the end of a render pass. Otherwise, it's
+    // the main framebuffer we render to normally.
+    virtual void bindTextureFramebuffer(GLenum target) = 0;
 
-        rasterOrderingBuffers = color | coverage | clip | scratchColor,
-        atomicBuffers = color | coverage | clip,
-    };
-
-    // Binds a framebuffer with all allocated textures attached as color attachments. Used for
-    // clearing, blitting, and for rendering with EXT_shader_framebuffer_fetch.
+    // Binds a "headless" framebuffer to GL_DRAW_FRAMEBUFFER with no color
+    // attachments and no enabled draw buffers.
     //
-    // 'drawBufferCount' specifies the number of glDrawBuffers to enable, starting with
-    // GL_COLOR_ATTACHMENT0. Ignored for GL_READ_FRAMEBUFFER.
-    virtual void bindInternalFramebuffer(GLenum target, DrawBufferMask) = 0;
-
-    // Binds a "headless" framebuffer to GL_DRAW_FRAMEBUFFER with no color attachments and no
-    // enabled draw buffers.
+    // If ARB_shader_image_load_store is supported,
+    // GL_FRAMEBUFFER_DEFAULT_WIDTH/HEIGHT will be the render target's
+    // dimensions.
     //
-    // If ARB_shader_image_load_store is supported, GL_FRAMEBUFFER_DEFAULT_WIDTH/HEIGHT will be the
-    // render target's dimensions.
-    //
-    // If ANGLE_shader_pixel_local_storage is supported, the allocated textures will also be bound
-    // to their corresponding pixel local storage planes.
+    // If ANGLE_shader_pixel_local_storage is supported, the allocated textures
+    // will also be bound to their corresponding pixel local storage planes.
     virtual void bindHeadlessFramebuffer(const GLCapabilities&) = 0;
-
-    // Binds the allocated textures to their corresponding GL image binding slots.
-    virtual void bindAsImageTextures(DrawBufferMask) = 0;
 
     enum class MSAAResolveAction
     {
         automatic,       // The MSAA framebuffer will be resolved automatically.
-        framebufferBlit, // Caller must call glBlitFramebuffer() to resolve the MSAA framebuffer.
+        framebufferBlit, // Caller must call glBlitFramebuffer() to resolve the
+                         // MSAA framebuffer.
     };
 
     // Bind the renderTarget as a multisampled framebuffer.
     //
-    // If the msaa framebuffer is offscreen, returns MSAAResolveAction::framebufferBlit, indicating
-    // that the caller must resolve it when done.
-    virtual MSAAResolveAction bindMSAAFramebuffer(RenderContextGLImpl*,
-                                                  int sampleCount,
-                                                  const IAABB* preserveBounds = nullptr,
-                                                  bool* isFBO0 = nullptr) = 0;
+    // If the msaa framebuffer is offscreen, returns
+    // MSAAResolveAction::framebufferBlit, indicating that the caller must
+    // resolve it when done.
+    virtual MSAAResolveAction bindMSAAFramebuffer(
+        RenderContextGLImpl*,
+        int sampleCount,
+        const IAABB* preserveBounds = nullptr,
+        bool* isFBO0 = nullptr) = 0;
 
-    // Binds the internal framebuffer as a texture that can be used to fetch the destination color
-    // (for blending).
-    virtual void bindInternalDstTexture(GLenum activeTexture) = 0;
+#ifdef GL_ANGLE_shader_pixel_local_storage
+    // ANGLE_shader_pixel_local_storage requires all backing textures in a
+    // render pass to have identical dimensions, so we can't use the context's
+    // "TransientPLSBacking" resource. Instead, this method ensures backing
+    // textures of identical width & height to the render target are allocated.
+    virtual void allocateWebGLPLSBacking(const GLCapabilities&) = 0;
+#endif
+
+    // Returns a texture that may be used in the absence of
+    // KHR_blend_equation_advanced to make a copy of the render target for
+    // blending.
+    GLuint dstColorTexture();
+    void bindDstColorFramebuffer(GLenum target);
 
 protected:
-    RenderTargetGL(uint32_t width, uint32_t height) : RenderTarget(width, height) {}
-};
+    RenderTargetGL(uint32_t width, uint32_t height) :
+        RenderTarget(width, height)
+    {}
 
-RIVE_MAKE_ENUM_BITSET(RenderTargetGL::DrawBufferMask);
+private:
+    glutils::Texture m_dstColorTexture = glutils::Texture::Zero();
+    glutils::Framebuffer m_dstColorFramebuffer = glutils::Framebuffer::Zero();
+};
 
 // GL render target that draws to an external texture provided by the client.
 //
 // Client must call setTargetTexture() before using this render target.
-class TextureRenderTargetGL : public lite_rtti_override<RenderTargetGL, TextureRenderTargetGL>
+class TextureRenderTargetGL
+    : public LITE_RTTI_OVERRIDE(RenderTargetGL, TextureRenderTargetGL)
 {
 public:
-    TextureRenderTargetGL(uint32_t width, uint32_t height) : lite_rtti_override(width, height) {}
+    TextureRenderTargetGL(uint32_t width, uint32_t height) :
+        lite_rtti_override(width, height)
+    {}
     ~TextureRenderTargetGL();
 
     GLuint externalTextureID() const { return m_externalTextureID; }
 
-    // Set the texture being rendered to. Ownership of this object is not assumed; the caller must
-    // delete it when done.
+    // Set the texture being rendered to. Ownership of this object is not
+    // assumed; the caller must delete it when done.
     void setTargetTexture(GLuint externalTextureID)
     {
         m_externalTextureID = externalTextureID;
         m_framebufferTargetAttachmentDirty = true;
-        m_framebufferTargetPLSBindingDirty = true;
+        m_webglPLSBindingsDirty = true;
     }
 
     void bindDestinationFramebuffer(GLenum target) final
     {
-        bindInternalFramebuffer(target, DrawBufferMask::color);
+        bindTextureFramebuffer(target);
     }
-    void allocateInternalPLSTextures(gpu::InterlockMode) final;
-    void bindInternalFramebuffer(GLenum target, DrawBufferMask) final;
+    GLuint renderTexture() final { return externalTextureID(); }
+    void bindTextureFramebuffer(GLenum target) final;
     void bindHeadlessFramebuffer(const GLCapabilities&) final;
-    void bindAsImageTextures(DrawBufferMask) final;
     MSAAResolveAction bindMSAAFramebuffer(RenderContextGLImpl*,
                                           int sampleCount,
                                           const IAABB* preserveBounds,
                                           bool* isFBO0) final;
-    void bindInternalDstTexture(GLenum activeTexture) final;
+
+#ifdef GL_ANGLE_shader_pixel_local_storage
+    void allocateWebGLPLSBacking(const GLCapabilities&) final;
+#endif
 
 private:
     // Not owned or deleted by us.
     GLuint m_externalTextureID = 0;
 
     glutils::Framebuffer m_framebufferID = glutils::Framebuffer::Zero();
-    glutils::Texture m_coverageTexture = glutils::Texture::Zero();
-    glutils::Texture m_clipTexture = glutils::Texture::Zero();
-    glutils::Texture m_scratchColorTexture = glutils::Texture::Zero();
     glutils::Framebuffer m_headlessFramebuffer = glutils::Framebuffer::Zero();
-
-    // GL enables the first drawBuffer by default.
-    DrawBufferMask m_internalDrawBufferMask = DrawBufferMask::color;
 
     // For framebuffer color attachments.
     bool m_framebufferTargetAttachmentDirty = false;
-    bool m_framebufferInternalAttachmentsDirty = false;
 
     // For ANGLE_shader_pixel_local_storage attachments.
-    bool m_framebufferTargetPLSBindingDirty = false;
-    bool m_framebufferInternalPLSBindingsDirty = false;
+    glutils::Texture m_webglPLSBackingR32UI = glutils::Texture::Zero();
+    // Fallback for when backing PLS planes with GL_TEXTURE_2D_ARRAY is broken
+    // (i.e., on ANGLE's d3d11 renderer).
+    glutils::Texture m_webglPLSBackingR32UIFallback = glutils::Texture::Zero();
+    glutils::Texture m_webglPLSBackingRGBA8 = glutils::Texture::Zero();
+    bool m_webglPLSBindingsDirty = false;
 
     glutils::Framebuffer m_msaaFramebuffer = glutils::Framebuffer::Zero();
     glutils::Renderbuffer m_msaaColorBuffer = glutils::Renderbuffer::Zero();
-    glutils::Renderbuffer m_msaaDepthStencilBuffer = glutils::Renderbuffer::Zero();
+    glutils::Renderbuffer m_msaaDepthStencilBuffer =
+        glutils::Renderbuffer::Zero();
     int m_msaaFramebufferSampleCount = 0;
 };
 
-// GL render target that draws to an external, immutable FBO provided by the client. Since the
-// external FBO is immutable and usually not readable either, it is almost always better to use
-// TextureRenderTargetGL if possible.
+// GL render target that draws to an external, immutable FBO provided by the
+// client. Since the external FBO is immutable and usually not readable either,
+// it is almost always better to use TextureRenderTargetGL if possible.
 class FramebufferRenderTargetGL
-    : public lite_rtti_override<RenderTargetGL, FramebufferRenderTargetGL>
+    : public LITE_RTTI_OVERRIDE(RenderTargetGL, FramebufferRenderTargetGL)
 {
 public:
     FramebufferRenderTargetGL(uint32_t width,
@@ -166,31 +176,35 @@ public:
 
     uint32_t sampleCount() const { return m_sampleCount; }
 
-    // Ensures a texture is allocated that mirrors our external FBO. (We can't modify the external
-    // FBO and usually can't read it either, so we often have no choice but to render to an
-    // offscreen texture first.)
+    // Ensures a texture is allocated that mirrors our external FBO. (We can't
+    // modify the external FBO and usually can't read it either, so we often
+    // have no choice but to render to an offscreen texture first.)
     void allocateOffscreenTargetTexture();
 
     void bindDestinationFramebuffer(GLenum target) final;
-    void allocateInternalPLSTextures(gpu::InterlockMode) final;
-    void bindInternalFramebuffer(GLenum target, DrawBufferMask) final;
+    GLuint renderTexture() final;
+    void bindTextureFramebuffer(GLenum target) final;
     void bindHeadlessFramebuffer(const GLCapabilities&) final;
-    void bindAsImageTextures(DrawBufferMask) final;
     MSAAResolveAction bindMSAAFramebuffer(RenderContextGLImpl*,
                                           int sampleCount,
                                           const IAABB* preserveBounds,
                                           bool* isFBO0) final;
-    void bindInternalDstTexture(GLenum activeTexture) final;
+
+#ifdef GL_ANGLE_shader_pixel_local_storage
+    void allocateWebGLPLSBacking(const GLCapabilities&) final;
+#endif
 
 private:
-    // Ownership of this object is not assumed; the client must delete it when done.
+    // Ownership of this object is not assumed; the client must delete it when
+    // done.
     const GLuint m_externalFramebufferID;
     const uint32_t m_sampleCount;
 
     // Holds the PLS textures we might need.
     TextureRenderTargetGL m_textureRenderTarget;
 
-    // Created for m_textureRenderTarget if/when we can't render directly to the framebuffer.
+    // Created for m_textureRenderTarget if/when we can't render directly to the
+    // framebuffer.
     glutils::Texture m_offscreenTargetTexture = glutils::Texture::Zero();
 };
 } // namespace rive::gpu

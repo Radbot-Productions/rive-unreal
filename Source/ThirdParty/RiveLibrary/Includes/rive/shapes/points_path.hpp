@@ -7,7 +7,6 @@ namespace rive
 class PointsPath : public PointsPathBase, public Skinnable
 {
 public:
-    bool isPathClosed() const override { return isClosed(); }
     void buildDependencies() override;
     void update(ComponentDirt value) override;
     void markPathDirty(bool sendToLayout = true) override;

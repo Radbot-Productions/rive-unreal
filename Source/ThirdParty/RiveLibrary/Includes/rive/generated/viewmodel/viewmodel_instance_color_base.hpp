@@ -12,14 +12,15 @@ protected:
 public:
     static const uint16_t typeKey = 426;
 
-    /// Helper to quickly determine if a core object extends another without RTTI
-    /// at runtime.
+    /// Helper to quickly determine if a core object extends another without
+    /// RTTI at runtime.
     bool isTypeOf(uint16_t typeKey) const override
     {
         switch (typeKey)
         {
             case ViewModelInstanceColorBase::typeKey:
             case ViewModelInstanceValueBase::typeKey:
+            case ComponentBase::typeKey:
                 return true;
             default:
                 return false;
@@ -30,8 +31,8 @@ public:
 
     static const uint16_t propertyValuePropertyKey = 555;
 
-private:
-    int m_PropertyValue = 0xFF1D1D1D;
+protected:
+    int m_PropertyValue = 0xFF000000;
 
 public:
     inline int propertyValue() const { return m_PropertyValue; }

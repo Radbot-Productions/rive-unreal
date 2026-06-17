@@ -1,11 +1,11 @@
 #ifndef _RIVE_TEXT_STYLE_HPP_
 #define _RIVE_TEXT_STYLE_HPP_
 #include "rive/generated/text/text_style_base.hpp"
-#include "rive/shapes/shape_paint_container.hpp"
 #include "rive/assets/file_asset_referencer.hpp"
 #include "rive/assets/file_asset.hpp"
 #include "rive/assets/font_asset.hpp"
-#include <unordered_map>
+#include "rive/text/text_interface.hpp"
+#include "rive/text/text_variation_helper.hpp"
 
 namespace rive
 {
@@ -19,47 +19,41 @@ class RenderPaint;
 class TextVariationHelper;
 class TextStyleAxis;
 class TextStyleFeature;
-class TextStyle : public TextStyleBase, public ShapePaintContainer, public FileAssetReferencer
-{
-private:
-    Artboard* getArtboard() override { return artboard(); }
+class TextInterface;
 
+class TextStyle : public TextStyleBase, public FileAssetReferencer
+{
 public:
     TextStyle();
     void buildDependencies() override;
     const rcp<Font> font() const;
-    void setAsset(FileAsset*) override;
+    void setAsset(rcp<FileAsset>) override;
     uint32_t assetId() override;
     StatusCode import(ImportStack& importStack) override;
 
-    FontAsset* fontAsset() const { return (FontAsset*)m_fileAsset; }
-
-    bool addPath(const RawPath& rawPath, float opacity);
-    void rewindPath();
-    void draw(Renderer* renderer);
     Core* clone() const override;
     void addVariation(TextStyleAxis* axis);
     void addFeature(TextStyleFeature* feature);
-    void updateVariableFont();
+    void updateVariableFont() const;
     StatusCode onAddedClean(CoreContext* context) override;
     void onDirty(ComponentDirt dirt) override;
+    bool validate(CoreContext* context) override;
 
 protected:
     void fontSizeChanged() override;
     void lineHeightChanged() override;
     void letterSpacingChanged() override;
+    FontAsset* fontAsset() const { return (FontAsset*)m_fileAsset.get(); }
 
 private:
     std::unique_ptr<TextVariationHelper> m_variationHelper;
-    std::unordered_map<float, rcp<RenderPath>> m_opacityPaths;
-    rcp<Font> m_variableFont;
-    rcp<RenderPath> m_path;
-    bool m_hasContents = false;
-    std::vector<Font::Coord> m_coords;
+    mutable rcp<Font> m_variableFont;
+
+    mutable std::vector<Font::Coord> m_coords;
     std::vector<TextStyleAxis*> m_variations;
-    std::vector<rcp<RenderPaint>> m_paintPool;
     std::vector<TextStyleFeature*> m_styleFeatures;
-    std::vector<Font::Feature> m_features;
+    mutable std::vector<Font::Feature> m_features;
+    TextInterface* m_text = nullptr;
 };
 } // namespace rive
 

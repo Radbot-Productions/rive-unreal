@@ -15,8 +15,12 @@ private:
 
 public:
     StateMachineListenerImporter(StateMachineListener* listener);
-    const StateMachineListener* stateMachineListener() const { return m_StateMachineListener; }
+    const StateMachineListener* stateMachineListener() const
+    {
+        return m_StateMachineListener;
+    }
     void addAction(std::unique_ptr<ListenerAction>);
+    void addListenerInputType(std::unique_ptr<ListenerInputType>);
     StatusCode resolve() override;
 };
 } // namespace rive

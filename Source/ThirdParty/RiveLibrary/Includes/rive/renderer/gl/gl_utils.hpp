@@ -6,33 +6,72 @@
 
 #include "rive/renderer/gl/gles3.hpp"
 #include "rive/math/aabb.hpp"
+#include "rive/shapes/paint/image_sampler.hpp"
 #include <cstddef>
 #include <utility>
 
 namespace glutils
 {
-void CompileAndAttachShader(GLuint program, GLenum type, const char* source, const GLCapabilities&);
+// Used when the driver doesn't support gl_BaseInstance
+// (GLCapabilities::ANGLE_base_vertex_base_instance_shader_builtin is false).
+//
+// The client must set this uniform value before drawing if the shader needs an
+// instance index.
+//
+// (Begin the variable name with an underscore so it won't collide with any
+// renames from minify.py.)
+constexpr static char BASE_INSTANCE_UNIFORM_NAME[] = "_baseInstance";
 
-void CompileAndAttachShader(GLuint program,
-                            GLenum type,
-                            const char* defines[],
-                            size_t numDefines,
-                            const char* sources[],
-                            size_t numSources,
-                            const GLCapabilities&);
+#ifdef DEBUG
+void PrintShaderCompilationErrors(GLuint shader);
+void PrintLinkProgramErrors(GLuint program);
+#endif
 
-[[nodiscard]] GLuint CompileShader(GLuint type, const char* source, const GLCapabilities&);
+enum class DebugPrintErrorAndAbort
+{
+    no,
+    yes,
+};
 
-[[nodiscard]] GLuint CompileShader(GLuint type,
-                                   const char* defines[],
-                                   size_t numDefines,
-                                   const char* sources[],
-                                   size_t numSources,
-                                   const GLCapabilities&);
+void CompileAndAttachShader(
+    GLuint program,
+    GLenum type,
+    const char* source,
+    const GLCapabilities&,
+    DebugPrintErrorAndAbort = DebugPrintErrorAndAbort::yes);
 
-[[nodiscard]] GLuint CompileRawGLSL(GLuint shaderType, const char* rawGLSL);
+void CompileAndAttachShader(
+    GLuint program,
+    GLenum type,
+    const char* defines[],
+    size_t numDefines,
+    const char* sources[],
+    size_t numSources,
+    const GLCapabilities&,
+    DebugPrintErrorAndAbort = DebugPrintErrorAndAbort::yes);
 
-void LinkProgram(GLuint program);
+[[nodiscard]] GLuint CompileShader(
+    GLuint type,
+    const char* source,
+    const GLCapabilities&,
+    DebugPrintErrorAndAbort = DebugPrintErrorAndAbort::yes);
+
+[[nodiscard]] GLuint CompileShader(
+    GLuint type,
+    const char* defines[],
+    size_t numDefines,
+    const char* sources[],
+    size_t numSources,
+    const GLCapabilities&,
+    DebugPrintErrorAndAbort = DebugPrintErrorAndAbort::yes);
+
+[[nodiscard]] GLuint CompileRawGLSL(
+    GLenum shaderType,
+    const char* rawGLSL,
+    DebugPrintErrorAndAbort = DebugPrintErrorAndAbort::yes);
+
+void LinkProgram(GLuint program,
+                 DebugPrintErrorAndAbort = DebugPrintErrorAndAbort::yes);
 
 class GLObject
 {
@@ -71,6 +110,7 @@ public:
     ~Texture() { reset(0); }
 
     static Texture Zero() { return Texture(0); }
+    static Texture Adopt(GLuint id) { return Texture(id); }
 
 private:
     explicit Texture(GLuint adoptedID) : GLObject(adoptedID) {}
@@ -146,6 +186,41 @@ public:
     ~VAO() { glDeleteVertexArrays(1, &m_id); }
 };
 
+class Shader : public GLObject
+{
+public:
+    Shader() = default;
+    Shader(Shader&& rhs) : GLObject(std::move(rhs)) {}
+    Shader& operator=(Shader&& rhs)
+    {
+        reset(std::exchange(rhs.m_id, 0));
+        return *this;
+    }
+    ~Shader() { reset(0); }
+
+    void compile(GLenum type,
+                 const char* source,
+                 const GLCapabilities& capabilities)
+    {
+        compile(type, nullptr, 0, &source, 1, capabilities);
+    }
+    void compile(GLenum type,
+                 const char* defines[],
+                 size_t numDefines,
+                 const char* sources[],
+                 size_t numSources,
+                 const GLCapabilities&);
+
+    void reset(GLuint adoptedID = 0)
+    {
+        if (m_id != 0)
+        {
+            glDeleteShader(m_id);
+        }
+        m_id = adoptedID;
+    }
+};
+
 class Program : public GLObject
 {
 public:
@@ -153,13 +228,15 @@ public:
     Program& operator=(Program&& rhs)
     {
         reset(std::exchange(rhs.m_id, 0));
-        m_vertexShaderID = std::exchange(rhs.m_vertexShaderID, 0);
-        m_fragmentShaderID = std::exchange(rhs.m_fragmentShaderID, 0);
+        m_vertexShader = std::move(rhs.m_vertexShader);
+        m_fragmentShader = std::move(rhs.m_fragmentShader);
         return *this;
     }
     ~Program() { reset(0); }
 
-    void compileAndAttachShader(GLenum type, const char* source, const GLCapabilities& capabilities)
+    void compileAndAttachShader(GLenum type,
+                                const char* source,
+                                const GLCapabilities& capabilities)
     {
         compileAndAttachShader(type, nullptr, 0, &source, 1, capabilities);
     }
@@ -179,13 +256,16 @@ private:
 
     void reset(GLuint adoptedProgramID);
 
-    GLuint m_vertexShaderID = 0;
-    GLuint m_fragmentShaderID = 0;
+    glutils::Shader m_vertexShader;
+    glutils::Shader m_fragmentShader;
 };
 
 void SetTexture2DSamplingParams(GLenum minFilter, GLenum magFilter);
+void SetTexture2DSamplingParams(rive::ImageSampler);
 
 void BlitFramebuffer(rive::IAABB bounds,
                      uint32_t renderTargetHeight,
                      GLbitfield mask = GL_COLOR_BUFFER_BIT);
+
+void Uniform1iByName(GLuint programID, const char* name, GLint value);
 } // namespace glutils

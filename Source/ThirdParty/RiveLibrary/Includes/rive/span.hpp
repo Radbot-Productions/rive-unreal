@@ -27,13 +27,20 @@ template <typename T> class Span
 
 public:
     Span() : m_Ptr(nullptr), m_Size(0) {}
-    Span(T* ptr, size_t size) : m_Ptr(ptr), m_Size(size) { assert(ptr <= ptr + size); }
+    Span(T* ptr, size_t size) : m_Ptr(ptr), m_Size(size)
+    {
+        assert(ptr <= ptr + size);
+    }
 
     // Handle Span<foo> --> Span<const foo>
-    template <typename U, typename = typename std::enable_if<std::is_same<const U, T>::value>::type>
+    template <typename U,
+              typename = typename std::enable_if<
+                  std::is_same<const U, T>::value>::type>
     constexpr Span(const Span<U>& that) : Span(that.data(), that.size())
     {}
-    template <typename Container> constexpr Span(Container& c) : Span(c.data(), c.size()) {}
+    template <typename Container>
+    constexpr Span(Container& c) : Span(c.data(), c.size())
+    {}
 
     T& operator[](size_t index) const
     {
@@ -72,10 +79,26 @@ public:
     typedef T const* const_iterator;
     typedef std::ptrdiff_t difference_type;
     typedef size_t size_type;
+
+    bool operator!=(const Span<T>& that) const
+    {
+        return m_Ptr != that.m_Ptr || m_Size != that.m_Size;
+    }
+    bool operator==(const Span<T>& that) const
+    {
+        return m_Ptr == that.m_Ptr && m_Size == that.m_Size;
+    }
 };
 
-template <typename T> Span<T> make_span(T* ptr, size_t size) { return Span<T>(ptr, size); }
+template <typename T> Span<T> make_span(T* ptr, size_t size)
+{
+    return Span<T>(ptr, size);
+}
 
+template <typename T, size_t N> Span<T> make_span(T (&ptr)[N])
+{
+    return Span<T>(ptr, N);
+}
 } // namespace rive
 
 #endif

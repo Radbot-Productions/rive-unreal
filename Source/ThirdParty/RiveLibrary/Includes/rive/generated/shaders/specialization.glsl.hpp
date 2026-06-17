@@ -1,23 +1,62 @@
 #pragma once
 
-#include "specialization.exports.h"
+#include "specialization.glsl.exports.h"
 
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char specialization[] = R"===(layout(constant_id = CLIPPING_SPECIALIZATION_IDX) const bool kEnableClipping = false;
-layout(constant_id = CLIP_RECT_SPECIALIZATION_IDX) const bool kEnableClipRect = false;
-layout(constant_id = ADVANCED_BLEND_SPECIALIZATION_IDX) const bool kEnableAdvancedBlend = false;
-layout(constant_id = EVEN_ODD_SPECIALIZATION_IDX) const bool kEnableEvenOdd = false;
-layout(constant_id = NESTED_CLIPPING_SPECIALIZATION_IDX) const bool kEnableNestedClipping = false;
-layout(constant_id = HSL_BLEND_MODES_SPECIALIZATION_IDX) const bool kEnableHSLBlendModes = false;
+const char specialization[] = R"===(#ifndef EXPORTED_SPEC_CONST_NONE
 
-#define _EXPORTED_ENABLE_CLIPPING  kEnableClipping
-#define _EXPORTED_ENABLE_CLIP_RECT  kEnableClipRect
-#define _EXPORTED_ENABLE_ADVANCED_BLEND  kEnableAdvancedBlend
-#define _EXPORTED_ENABLE_EVEN_ODD  kEnableEvenOdd
-#define _EXPORTED_ENABLE_NESTED_CLIPPING  kEnableNestedClipping
-#define _EXPORTED_ENABLE_HSL_BLEND_MODES  kEnableHSLBlendModes
+layout(constant_id = CLIPPING_SPECIALIZATION_IDX) const
+    bool kEnableClipping = true;
+layout(constant_id = CLIP_RECT_SPECIALIZATION_IDX) const
+    bool kEnableClipRect = true;
+layout(constant_id = ADVANCED_BLEND_SPECIALIZATION_IDX) const
+    bool kEnableAdvancedBlend = true;
+layout(constant_id = FEATHER_SPECIALIZATION_IDX) const
+    bool kEnableFeather = true;
+layout(constant_id = EVEN_ODD_SPECIALIZATION_IDX) const
+    bool kEnableEvenOdd = true;
+layout(constant_id = NESTED_CLIPPING_SPECIALIZATION_IDX) const
+    bool kEnableNestedClipping = true;
+layout(constant_id = HSL_BLEND_MODES_SPECIALIZATION_IDX) const
+    bool kEnableHSLBlendModes = true;
+layout(constant_id = DITHER_SPECIALIZATION_IDX) const bool kEnableDither = true;
+layout(constant_id = CLOCKWISE_FILL_SPECIALIZATION_IDX) const
+    bool kClockwiseFill = true;
+layout(constant_id = BORROWED_COVERAGE_PASS_SPECIALIZATION_IDX) const
+    bool kBorrowedCoveragePrepass = true;
+layout(constant_id = VULKAN_VENDOR_ID_SPECIALIZATION_IDX) const uint
+    kVulkanVendorID = 0;
+
+#define EXPORTED_ENABLE_CLIPPING  kEnableClipping
+#define EXPORTED_ENABLE_CLIP_RECT  kEnableClipRect
+#define EXPORTED_ENABLE_ADVANCED_BLEND  kEnableAdvancedBlend
+#define EXPORTED_ENABLE_FEATHER  kEnableFeather
+#define EXPORTED_ENABLE_EVEN_ODD  kEnableEvenOdd
+#define EXPORTED_ENABLE_NESTED_CLIPPING  kEnableNestedClipping
+#define EXPORTED_ENABLE_HSL_BLEND_MODES  kEnableHSLBlendModes
+#define EXPORTED_ENABLE_DITHER  kEnableDither
+#define EXPORTED_CLOCKWISE_FILL  kClockwiseFill
+#define EXPORTED_BORROWED_COVERAGE_PASS  kBorrowedCoveragePrepass
+#define EXPORTED_VULKAN_VENDOR_ID  kVulkanVendorID
+
+#else
+
+// Specialization constants aren't supported; just compile an ubershader.
+#define EXPORTED_ENABLE_CLIPPING  true
+#define EXPORTED_ENABLE_CLIP_RECT  true
+#define EXPORTED_ENABLE_ADVANCED_BLEND  true
+#define EXPORTED_ENABLE_FEATHER  true
+#define EXPORTED_ENABLE_EVEN_ODD  true
+#define EXPORTED_ENABLE_NESTED_CLIPPING  true
+#define EXPORTED_ENABLE_HSL_BLEND_MODES  true
+#define EXPORTED_ENABLE_DITHER  true
+#define EXPORTED_CLOCKWISE_FILL  true
+#define EXPORTED_BORROWED_COVERAGE_PASS  true
+#define EXPORTED_VULKAN_VENDOR_ID  0
+
+#endif
 )===";
 } // namespace glsl
 } // namespace gpu

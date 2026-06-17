@@ -1,6 +1,6 @@
 #pragma once
 
-#include "rhi.exports.h"
+#include "rhi.glsl.exports.h"
 
 namespace rive {
 namespace gpu {
@@ -9,15 +9,16 @@ const char rhi[] = R"===(/*
  * Copyright 2023 Rive
  */
 
-// This header provides GLSL-specific #defines and declarations that enable our shaders to be
-// compiled on MSL and GLSL both.
+// This header provides GLSL-specific #defines and declarations that enable our
+// shaders to be compiled on MSL and GLSL both.
 
-// HLSL warns that it will unroll the loops through r,g,b values in advanced_blend.glsl, but
-// unrolling these loops is exactly what we want.
+// HLSL warns that it will unroll the loops through r,g,b values in
+// advanced_blend.glsl, but unrolling these loops is exactly what we want.
 #pragma warning(disable : 3550)
 
-// Don't warn about uninitialized variables. If we leave one uninitialized it's because we know what
-// we're doing and don't want to pay the cost of initializing it.
+// Don't warn about uninitialized variables. If we leave one uninitialized it's
+// because we know what we're doing and don't want to pay the cost of
+// initializing it.
 #pragma warning(disable : 4000)
 
 // #define native hlsl types if their names are being rewritten.
@@ -50,129 +51,230 @@ const char rhi[] = R"===(/*
 #define float4x2  float4x2
 #define ushort  ushort
 #define float2x2  float2x2
-#define half3x4  half3x4
+#define half3x3  half3x3
+#define half2x3  half2x3
+#define half4x4  half4x4
 #endif
 
 typedef float3 packed_float3;
 
-#ifdef _EXPORTED_ENABLE_MIN_16_PRECISION
+#ifdef EXPORTED_ENABLE_MIN_16_PRECISION
+
+#if NEEDS_USHORT_DEFINE
 
 typedef min16uint ushort;
 
+#endif // NEEDS_USHORT_DEFINE
+
 #else
+
+#if NEEDS_USHORT_DEFINE
 
 typedef uint ushort;
 
-#endif
+#endif // NEEDS_USHORT_DEFINE
 
-#define SPLAT(A, B)  A##B
+#endif // ENABLE_MIN_16_PRECISION
+
+#define CONCAT(A, B)  A##B
 
 #define INLINE  inline
 #define OUT(ARG_TYPE)  out ARG_TYPE
+#define INOUT(ARG_TYPE)  inout ARG_TYPE
 
-#define ATTR_BLOCK_BEGIN(NAME)                                                                      \
-    struct NAME                                                                                    \
+#define ATTR_BLOCK_BEGIN(NAME)                                                  \
+    struct NAME                                                                \
     {
-#define ATTR(IDX, TYPE, NAME)  TYPE NAME : SPLAT(ATTRIBUTE, IDX)
-#define ATTR_BLOCK_END                                                                              \
-    }                                                                                              \
+#define ATTR(IDX, TYPE, NAME)  TYPE NAME : CONCAT(ATTRIBUTE, IDX)
+#define ATTR_BLOCK_END                                                          \
+    }                                                                          \
     ;
 #define ATTR_LOAD(T, A, N, I)
 #define ATTR_UNPACK(ID, attrs, NAME, TYPE)  TYPE NAME = attrs.NAME
 
-#define UNIFORM_BUFFER_REGISTER(IDX)  register(SPLAT(b, IDX))
-
-#define UNIFORM_BLOCK_BEGIN(IDX, NAME)                                                              \
-    cbuffer NAME : UNIFORM_BUFFER_REGISTER(IDX)                                                   \
-    {                                                                                              \
-        struct                                                                                     \
+#define UNIFORM_BLOCK_BEGIN(IDX, NAME)                                          \
+    cbuffer NAME                                                              \
+    {                                                                          \
+        struct                                                                 \
         {
 
-#define UNIFORM_BLOCK_END(NAME)                                                                     \
-    }                                                                                              \
-    NAME;                                                                                          \
+#define UNIFORM_BLOCK_END(NAME)                                                 \
+    }                                                                          \
+    NAME;                                                                      \
     }
 
-#define VARYING_BLOCK_BEGIN                                                                         \
-    struct Varyings                                                                                \
+#define VARYING_BLOCK_BEGIN                                                     \
+    struct Varyings                                                            \
     {
 
 #define NO_PERSPECTIVE  noperspective
-#define _EXPORTED_OPTIONALLY_FLAT  nointerpolation
+#define EXPORTED_OPTIONALLY_FLAT  nointerpolation
 #define FLAT  nointerpolation
-#define VARYING(IDX, TYPE, NAME)  TYPE NAME : SPLAT(TEXCOORD, IDX)
+#define VARYING(IDX, TYPE, NAME)  TYPE NAME : CONCAT(TEXCOORD, IDX)
 
-#define VARYING_BLOCK_END                                                                           \
-    float4 _pos : SV_Position;                                                                    \
-    }                                                                                              \
+#ifdef EXPORTED_NEEDS_CLIP_DISTANCE
+#define VARYING_BLOCK_END                                                       \
+    float4 _pos : SV_Position;                                                \
+    float4 _clip : SV_ClipDistance;                                           \
+    }                                                                          \
     ;
+#else // !@NEEDS_CLIP_DISTANCE
+#define VARYING_BLOCK_END                                                       \
+    float4 _pos : SV_Position;                                                \
+    }                                                                          \
+    ;
+#endif // @NEEDS_CLIP_DISTANCE
 
 #define VARYING_INIT(NAME, TYPE)  TYPE NAME
 #define VARYING_PACK(NAME)  _varyings.NAME = NAME
 #define VARYING_UNPACK(NAME, TYPE)  TYPE NAME = _varyings.NAME
 
-#ifdef _EXPORTED_VERTEX
+#ifdef EXPORTED_VERTEX
 #define VERTEX_TEXTURE_BLOCK_BEGIN
 #define VERTEX_TEXTURE_BLOCK_END
 #endif
 
-#ifdef _EXPORTED_FRAGMENT
+#ifdef EXPORTED_FRAGMENT
 #define FRAG_TEXTURE_BLOCK_BEGIN
 #define FRAG_TEXTURE_BLOCK_END
 #endif
 
-#define TEXTURE_RGBA32UI(SET, IDX, NAME)  uniform Texture2D<uint4> NAME : register(SPLAT(t, IDX))
-#define TEXTURE_RGBA32F(SET, IDX, NAME)  uniform Texture2D<float4> NAME : register(SPLAT(t, IDX))
-#define TEXTURE_RGBA8(SET, IDX, NAME)                                                               \
-    uniform Texture2D<unorm float4> NAME : register(SPLAT(t, IDX))
+#define DYNAMIC_SAMPLER_BLOCK_BEGIN
+#define DYNAMIC_SAMPLER_BLOCK_END
 
-// SAMPLER_LINEAR and SAMPLER_MIPMAP are the same because in d3d11, sampler parameters are defined
-// at the API level.
-#define SAMPLER(TEXTURE_IDX, NAME)  SamplerState NAME : register(SPLAT(s, TEXTURE_IDX));
+#define TEXTURE_RGBA32UI(SET, IDX, NAME)  uniform Texture2D<uint4> NAME
+#define TEXTURE_RGBA32F(SET, IDX, NAME)  uniform Texture2D<float4> NAME
+#ifdef EXPORTED_SOURCE_TEXTURE_MSAA
+#define TEXTURE_RGBA8_MS(SET, IDX, NAME)  uniform Texture2DMS<half4> NAME
+#endif
+#define TEXTURE_RGBA8(SET, IDX, NAME)  uniform Texture2D<half4> NAME
+#define TEXTURE_R16F(SET, IDX, NAME)  uniform Texture2D<half> NAME
+#define TEXTURE_R16F_1D_ARRAY(SET, IDX, NAME)  uniform Texture2DArray<half> NAME
+#define SAMPLED_R16F_REF(NAME, SAMPLER_NAME)                                    \
+    Texture2D<half> NAME, SamplerState SAMPLER_NAME
+#define SAMPLED_R16F(NAME, SAMPLER_NAME)  NAME, SAMPLER_NAME
+
+// SAMPLER_LINEAR and SAMPLER_MIPMAP are the same because in d3d11, sampler
+// parameters are defined at the API level.
+#define SAMPLER(IDX, NAME)  SamplerState NAME;
 #define SAMPLER_LINEAR  SAMPLER
 #define SAMPLER_MIPMAP  SAMPLER
+#define SAMPLER_DYNAMIC(SET, IDX, NAME)  SAMPLER(IDX, NAME)
 
+#ifdef SOURCE_TEXTURE_MSAA
+#define TEXEL_FETCH_MS(NAME, LEVEL, COORD)  NAME.Load(COORD, LEVEL)
+#endif
 #define TEXEL_FETCH(NAME, COORD)  NAME[COORD]
-#define TEXTURE_SAMPLE(NAME, SAMPLER_NAME, COORD)  NAME.Sample(SAMPLER_NAME, COORD)
-#define TEXTURE_SAMPLE_LOD(NAME, SAMPLER_NAME, COORD, LOD)                                          \
+#define TEXTURE_SAMPLE(NAME, SAMPLER_NAME, COORD)                               \
+    NAME.Sample(SAMPLER_NAME, COORD)
+#define TEXTURE_SAMPLE_LOD(NAME, SAMPLER_NAME, COORD, LOD)                      \
     NAME.SampleLevel(SAMPLER_NAME, COORD, LOD)
-#define TEXTURE_SAMPLE_GRAD(NAME, SAMPLER_NAME, COORD, DDX, DDY)                                    \
+#define TEXTURE_SAMPLE_LODBIAS(NAME, SAMPLER_NAME, COORD, LODBIAS)              \
+    NAME.SampleBias(SAMPLER_NAME, COORD, LODBIAS)
+#define TEXTURE_REF_SAMPLE_LOD  TEXTURE_SAMPLE_LOD
+#define TEXTURE_SAMPLE_GRAD(NAME, SAMPLER_NAME, COORD, DDX, DDY)                \
     NAME.SampleGrad(SAMPLER_NAME, COORD, DDX, DDY)
+#define TEXTURE_GATHER(NAME, SAMPLER_NAME, COORD, TEXTURE_INVERSE_SIZE)         \
+    NAME.Gather(SAMPLER_NAME, (COORD) * (TEXTURE_INVERSE_SIZE))
+#define TEXTURE_SAMPLE_LOD_1D_ARRAY(NAME,                                      \
+                                    SAMPLER_NAME,                              \
+                                    X,                                         \
+                                    ARRAY_INDEX,                               \
+                                    ARRAY_INDEX_NORMALIZED,                    \
+                                    LOD)                                        \
+    NAME.SampleLevel(SAMPLER_NAME, float3(X, 0.5, ARRAY_INDEX), LOD)
+
+#define TEXTURE_SAMPLE_DYNAMIC(TEXTURE, SAMPLER_NAME, COORD)                    \
+    TEXTURE_SAMPLE(TEXTURE, SAMPLER_NAME, COORD)
+#define TEXTURE_SAMPLE_DYNAMIC_LOD(TEXTURE, SAMPLER_NAME, COORD, LOD)           \
+    TEXTURE_SAMPLE_LOD(TEXTURE, SAMPLER_NAME, COORD, LOD)
+#define TEXTURE_SAMPLE_DYNAMIC_LODBIAS(TEXTURE, SAMPLER_NAME, COORD, LODBIAS)   \
+    TEXTURE_SAMPLE_LODBIAS(TEXTURE, SAMPLER_NAME, COORD, LODBIAS)
 
 #define PLS_INTERLOCK_BEGIN
 #define PLS_INTERLOCK_END
 
-#ifdef _EXPORTED_ENABLE_RASTERIZER_ORDERED_VIEWS
+#ifdef EXPORTED_ENABLE_RASTERIZER_ORDERED_VIEWS
 #define PLS_TEX2D  RasterizerOrderedTexture2D
 #else
 #define PLS_TEX2D  RWTexture2D
 #endif
 
-#define PLS_BLOCK_BEGIN
-#ifdef _EXPORTED_ENABLE_TYPED_UAV_LOAD_STORE
-#define PLS_DECL4F(IDX, NAME)  uniform PLS_TEX2D<unorm half4> NAME : register(SPLAT(u, IDX))
+#if defined(EXPORTED_FRAGMENT) && defined(EXPORTED_RENDER_MODE_MSAA)
+
+#ifdef EXPORTED_SUPPORTS_SUBPASS_LOAD
+#define DST_COLOR_TEXTURE(NAME)                                                 \
+    [[vk::input_attachment_index(COLOR_PLANE_IDX)]] SubpassInputMS<half4> NAME
+
+#define DST_COLOR_FETCH(NAME)                                                   \
+    dst_color_fetch(half4x4(NAME.SubpassLoad(0),                               \
+                            NAME.SubpassLoad(1),                               \
+                            NAME.SubpassLoad(2),                               \
+                            NAME.SubpassLoad(3)),                              \
+                    _sampleMask)
 #else
-#define PLS_DECL4F(IDX, NAME)  uniform PLS_TEX2D<uint> NAME : register(SPLAT(u, IDX))
+#define DST_COLOR_TEXTURE(NAME)  Texture2D NAME
+
+#define DST_COLOR_FETCH(NAME)  NAME[_plsCoord]
 #endif
-#define PLS_DECLUI(IDX, NAME)  uniform PLS_TEX2D<uint> NAME : register(SPLAT(u, IDX))
-#define PLS_DECLUI_ATOMIC  PLS_DECLUI
-#define PLS_LOADUI_ATOMIC  PLS_LOADUI
-#define PLS_STOREUI_ATOMIC  PLS_STOREUI
+#endif // @FRAGMENT && @RENDER_MODE_MSAA
+
+#define PLS_BLOCK_BEGIN
 #define PLS_BLOCK_END
 
-#ifdef _EXPORTED_ENABLE_TYPED_UAV_LOAD_STORE
+#ifdef EXPORTED_ENABLE_TYPED_UAV_LOAD_STORE
+#define PLS_DECL4F(IDX, NAME)  uniform PLS_TEX2D<UNORM half4> NAME
+#else
+#define PLS_DECL4F(IDX, NAME)  uniform PLS_TEX2D<uint> NAME
+#endif
+#define PLS_DECL4F_READONLY  PLS_DECL4F
+#define PLS_DECLUI(IDX, NAME)  uniform PLS_TEX2D<uint> NAME
+
+#define PLS_LOADUI_UAV  PLS_LOADUI
+#define PLS_STOREUI_UAV  PLS_STOREUI
+
+#if COMPILER_METAL || FORCE_ATOMIC_BUFFER
+#define PLS_DECLUI_UAV(IDX, NAME)  uniform RWBuffer<uint> NAME
+#define PLS_LOADUI_UAV(PLANE)  PLANE[_plsIdx]
+#define PLS_STOREUI_UAV(PLANE, VALUE)  PLANE[_plsIdx] = VALUE
+#else
+#define PLS_DECLUI_UAV  PLS_DECLUI
+#define PLS_LOADUI_UAV  PLS_LOADUI
+#define PLS_STOREUI_UAV  PLS_STOREUI
+#endif // COMPILER_METAL
+
+#ifdef EXPORTED_ENABLE_TYPED_UAV_LOAD_STORE
 #define PLS_LOAD4F(PLANE)  PLANE[_plsCoord]
 #else
 #define PLS_LOAD4F(PLANE)  unpackUnorm4x8(PLANE[_plsCoord])
 #endif
 #define PLS_LOADUI(PLANE)  PLANE[_plsCoord]
-#ifdef _EXPORTED_ENABLE_TYPED_UAV_LOAD_STORE
+#ifdef EXPORTED_ENABLE_TYPED_UAV_LOAD_STORE
 #define PLS_STORE4F(PLANE, VALUE)  PLANE[_plsCoord] = (VALUE)
 #else
 #define PLS_STORE4F(PLANE, VALUE)  PLANE[_plsCoord] = packUnorm4x8(VALUE)
 #endif
 #define PLS_STOREUI(PLANE, VALUE)  PLANE[_plsCoord] = (VALUE)
 
+#if COMPILER_METAL || FORCE_ATOMIC_BUFFER
+INLINE uint pls_atomic_max(RWBuffer<uint> plane, uint _plsIdx, uint x)
+{
+    uint originalValue;
+    InterlockedMax(plane[_plsIdx], x, originalValue);
+    return originalValue;
+}
+
+#define PLS_ATOMIC_MAX(PLANE, X)  pls_atomic_max(PLANE, _plsIdx, X)
+
+INLINE uint pls_atomic_add(RWBuffer<uint> plane, uint _plsIdx, uint x)
+{
+    uint originalValue;
+    InterlockedAdd(plane[_plsIdx], x, originalValue);
+    return originalValue;
+}
+
+#define PLS_ATOMIC_ADD(PLANE, X)  pls_atomic_add(PLANE, _plsIdx, X)
+#else
 INLINE uint pls_atomic_max(PLS_TEX2D<uint> plane, int2 _plsCoord, uint x)
 {
     uint originalValue;
@@ -190,6 +292,7 @@ INLINE uint pls_atomic_add(PLS_TEX2D<uint> plane, int2 _plsCoord, uint x)
 }
 
 #define PLS_ATOMIC_ADD(PLANE, X)  pls_atomic_add(PLANE, _plsCoord, X)
+#endif
 
 #define PLS_PRESERVE_4F(PLANE)
 #define PLS_PRESERVE_UI(PLANE)
@@ -197,41 +300,114 @@ INLINE uint pls_atomic_add(PLS_TEX2D<uint> plane, int2 _plsCoord, uint x)
 #define VERTEX_CONTEXT_DECL
 #define VERTEX_CONTEXT_UNPACK
 
-#define VERTEX_MAIN(NAME, Attrs, attrs, _vertexID, _instanceID)                                     \
-                                                                                                   \
-    uint baseInstance;                                                                            \
-                                                                                                   \
-    Varyings NAME(Attrs attrs, uint _vertexID                                                      \
-                  : SV_VertexID, uint _instanceIDWithoutBase                                      \
-                  : SV_InstanceID)                                                                \
-    {                                                                                              \
-        uint _instanceID = _instanceIDWithoutBase + baseInstance;                                 \
+#define TEXTURE_CONTEXT_DECL
+#define TEXTURE_CONTEXT_FORWARD
+
+#ifdef EXPORTED_NO_VARYING
+
+#define VERTEX_MAIN(NAME, Attrs, attrs, _vertexID, _instanceID)                 \
+                                                                               \
+    uint baseInstance;                                                        \
+                                                                               \
+    float4 NAME(Attrs attrs,                                                   \
+                uint _vertexID : SV_VertexID,                                 \
+                uint _instanceIDWithoutBase : SV_InstanceID) :                \
+        SV_Position                                                           \
+    {                                                                          \
+        uint _instanceID = _instanceIDWithoutBase + baseInstance;
+
+#define EMIT_VERTEX(POSITION)                                                   \
+    return POSITION;                                                           \
+    }
+
+#else // !@NO_VARYING
+
+#define VERTEX_MAIN(NAME, Attrs, attrs, _vertexID, _instanceID)                 \
+                                                                               \
+    uint baseInstance;                                                        \
+                                                                               \
+    Varyings NAME(Attrs attrs,                                                 \
+                  uint _vertexID : SV_VertexID,                               \
+                  uint _instanceIDWithoutBase : SV_InstanceID)                \
+    {                                                                          \
+        uint _instanceID = _instanceIDWithoutBase + baseInstance;             \
         Varyings _varyings;
 
-#define IMAGE_RECT_VERTEX_MAIN(NAME, Attrs, attrs, _vertexID, _instanceID)                          \
-    Varyings NAME(Attrs attrs, uint _vertexID : SV_VertexID)                                      \
-    {                                                                                              \
-        Varyings _varyings;                                                                        \
+#define IMAGE_RECT_VERTEX_MAIN(NAME, Attrs, attrs, _vertexID, _instanceID)      \
+    Varyings NAME(Attrs attrs, uint _vertexID : SV_VertexID)                  \
+    {                                                                          \
+        Varyings _varyings;                                                    \
         float4 _pos;
 
-#define IMAGE_MESH_VERTEX_MAIN(NAME, PositionAttr, position, UVAttr, uv, _vertexID)                 \
-    Varyings NAME(PositionAttr position, UVAttr uv, uint _vertexID : SV_VertexID)                 \
-    {                                                                                              \
-        Varyings _varyings;                                                                        \
+#define IMAGE_MESH_VERTEX_MAIN(NAME,                                           \
+                               PositionAttr,                                   \
+                               position,                                       \
+                               UVAttr,                                         \
+                               uv,                                             \
+                               _vertexID)                                       \
+    Varyings NAME(PositionAttr position,                                       \
+                  UVAttr uv,                                                   \
+                  uint _vertexID : SV_VertexID)                               \
+    {                                                                          \
+        Varyings _varyings;                                                    \
         float4 _pos;
 
-#define EMIT_VERTEX(POSITION)                                                                       \
-    _varyings._pos = POSITION;                                                                     \
-    }                                                                                              \
+#define EMIT_VERTEX(POSITION)                                                   \
+    _varyings._pos = POSITION;                                                 \
+    }                                                                          \
     return _varyings;
+#endif // End !@NO_VARYING
 
-#define FRAG_DATA_MAIN(DATA_TYPE, NAME)                                                             \
-    DATA_TYPE NAME(Varyings _varyings) : SV_Target                                                \
-    {
+// RHI is forced counter clockwise front. So reverse the "isFrontFace" argument
+// for clockwise
 
-#define EMIT_FRAG_DATA(VALUE)                                                                       \
-    return VALUE;                                                                                  \
+#ifdef EXPORTED_NO_VARYING
+#define FRAG_DATA_MAIN(DATA_TYPE, NAME)                                         \
+    EARLYDEPTHSTENCIL DATA_TYPE NAME(float4 _pos : SV_Position) : SV_Target \
+    {                                                                          \
+        float2 _fragCoord = _pos.xy;
+
+#define FRAG_DATA_MAIN_WITH_CLOCKWISE(DATA_TYPE, NAME)                          \
+    EARLYDEPTHSTENCIL DATA_TYPE NAME(float4 _pos : SV_Position,               \
+                                     uint _sampleMask : SV_Coverage,          \
+                                     bool _isFrontFace : SV_IsFrontFace) :    \
+        SV_Target                                                             \
+    {                                                                          \
+        float2 _fragCoord = _pos.xy;                                           \
+        bool _clockwise = !_isFrontFace;
+#else
+#define FRAG_DATA_MAIN(DATA_TYPE, NAME)                                         \
+    EARLYDEPTHSTENCIL DATA_TYPE NAME(Varyings _varyings,                      \
+                                      uint _sampleMask : SV_Coverage) :       \
+        SV_Target                                                             \
+    {                                                                          \
+        float2 _fragCoord = _varyings._pos.xy;                                 \
+        int2 _plsCoord = int2(floor(_fragCoord));                              \
+        uint _plsIdx = _plsCoord.y * uniforms.renderTargetWidth + _plsCoord.x;
+
+#define FRAG_DATA_MAIN_WITH_CLOCKWISE(DATA_TYPE, NAME)                          \
+    DATA_TYPE NAME(Varyings _varyings,                                         \
+                   uint _sampleMask : SV_Coverage,                            \
+                   bool _isFrontFace : SV_IsFrontFace) :                      \
+        SV_Target                                                             \
+    {                                                                          \
+        float2 _fragCoord = _varyings._pos.xy;                                 \
+        int2 _plsCoord = int2(floor(_fragCoord));                              \
+        uint _plsIdx = _plsCoord.y * uniforms.renderTargetWidth + _plsCoord.x; \
+        bool _clockwise = !_isFrontFace;
+
+#endif
+
+#define EMIT_FRAG_DATA(VALUE)                                                   \
+    return VALUE;                                                              \
     }
+#ifdef EXPORTED_NEEDS_CLIP_DISTANCE
+#define CLIP_CONTEXT_FORWARD  , out float4 gl_ClipDistance
+#define CLIP_CONTEXT_UNPACK  , _varyings._clip
+#else
+#define CLIP_CONTEXT_FORWARD
+#define CLIP_CONTEXT_UNPACK
+#endif
 
 #define FRAGMENT_CONTEXT_DECL  , float2 _fragCoord
 #define FRAGMENT_CONTEXT_UNPACK  , _fragCoord
@@ -239,25 +415,33 @@ INLINE uint pls_atomic_add(PLS_TEX2D<uint> plane, int2 _plsCoord, uint x)
 #define PLS_CONTEXT_DECL  , int2 _plsCoord
 #define PLS_CONTEXT_UNPACK  , _plsCoord
 
-#define PLS_MAIN(NAME)  [earlydepthstencil] void NAME(Varyings _varyings) { \
-        float2 _fragCoord = _varyings._pos.xy;\
-        int2 _plsCoord = int2(floor(_fragCoord));
+#define PLS_MAIN(NAME)                                                          \
+    EARLYDEPTHSTENCIL void NAME(Varyings _varyings)                           \
+    {                                                                          \
+        float2 _fragCoord = _varyings._pos.xy;                                 \
+        int2 _plsCoord = int2(floor(_fragCoord));                              \
+        uint _plsIdx = _plsCoord.y * uniforms.renderTargetWidth + _plsCoord.x;
 
 #define PLS_MAIN_WITH_IMAGE_UNIFORMS(NAME)  PLS_MAIN(NAME)
 
+#if defined(EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT) && defined(EXPORTED_DRAW_IMAGE_MESH)
+#define EMIT_PLS  EMIT_PLS_AND_FRAG_COLOR
+#else
 #define EMIT_PLS  }
+#endif
 
-#define PLS_FRAG_COLOR_MAIN(NAME)                                                                   \
-    [earlydepthstencil] half4 NAME(Varyings _varyings) : SV_Target                               \
-    {                                                                                              \
-        float2 _fragCoord = _varyings._pos.xy;                                                     \
-        int2 _plsCoord = int2(floor(_fragCoord));                                                  \
+#define PLS_FRAG_COLOR_MAIN(NAME)                                               \
+    EARLYDEPTHSTENCIL half4 NAME(Varyings _varyings) : SV_Target             \
+    {                                                                          \
+        float2 _fragCoord = _varyings._pos.xy;                                 \
+        int2 _plsCoord = int2(floor(_fragCoord));                              \
+        uint _plsIdx = _plsCoord.y * uniforms.renderTargetWidth + _plsCoord.x; \
         half4 _fragColor;
 
 #define PLS_FRAG_COLOR_MAIN_WITH_IMAGE_UNIFORMS(NAME)  PLS_FRAG_COLOR_MAIN(NAME)
 
-#define EMIT_PLS_AND_FRAG_COLOR                                                                     \
-    }                                                                                              \
+#define EMIT_PLS_AND_FRAG_COLOR                                                 \
+    }                                                                          \
     return _fragColor;
 
 #define uintBitsToFloat  asfloat
@@ -265,12 +449,16 @@ INLINE uint pls_atomic_add(PLS_TEX2D<uint> plane, int2 _plsCoord, uint x)
 #define floatBitsToInt  asint
 #define floatBitsToUint  asuint
 #define inversesqrt  rsqrt
+#define equal(A, B)  ((A) == (B))
 #define notEqual(A, B)  ((A) != (B))
 #define lessThanEqual(A, B)  ((A) <= (B))
+#define lessThan(A, B)  ((A) < (B))
+#define greaterThan(A, B)  ((A) > (B))
 #define greaterThanEqual(A, B)  ((A) >= (B))
 
-// HLSL matrices are stored in row-major order, and therefore transposed from their counterparts
-// in GLSL and Metal. We can work around this entirely by reversing the arguments to mul().
+// HLSL matrices are stored in row-major order, and therefore transposed from
+// their counterparts in GLSL and Metal. We can work around this entirely by
+// reversing the arguments to mul().
 #define MUL(A, B)  mul(B, A)
 
 #define VERTEX_STORAGE_BUFFER_BLOCK_BEGIN
@@ -279,12 +467,12 @@ INLINE uint pls_atomic_add(PLS_TEX2D<uint> plane, int2 _plsCoord, uint x)
 #define FRAG_STORAGE_BUFFER_BLOCK_BEGIN
 #define FRAG_STORAGE_BUFFER_BLOCK_END
 
-#define STORAGE_BUFFER_U32x2(IDX, GLSL_STRUCT_NAME, NAME)                                           \
-    StructuredBuffer<uint2> NAME : register(SPLAT(t, IDX))
-#define STORAGE_BUFFER_U32x4(IDX, GLSL_STRUCT_NAME, NAME)                                           \
-    StructuredBuffer<uint4> NAME : register(SPLAT(t, IDX))
-#define STORAGE_BUFFER_F32x4(IDX, GLSL_STRUCT_NAME, NAME)                                           \
-    StructuredBuffer<float4> NAME : register(SPLAT(t, IDX))
+#define STORAGE_BUFFER_U32x2(IDX, GLSL_STRUCT_NAME, NAME)                       \
+    StructuredBuffer<uint2> NAME
+#define STORAGE_BUFFER_U32x4(IDX, GLSL_STRUCT_NAME, NAME)                       \
+    StructuredBuffer<uint4> NAME
+#define STORAGE_BUFFER_F32x4(IDX, GLSL_STRUCT_NAME, NAME)                       \
+    StructuredBuffer<float4> NAME
 
 #define STORAGE_BUFFER_LOAD4(NAME, I)  NAME[I]
 #define STORAGE_BUFFER_LOAD2(NAME, I)  NAME[I]
@@ -317,8 +505,6 @@ INLINE uint packUnorm4x8(half4 color)
     return vals.x;
 }
 
-INLINE float atan(float y, float x) { return atan2(y, x); }
-
 INLINE float2x2 inverse(float2x2 m)
 {
     float2x2 adjoint = float2x2(m[1][1], -m[0][1], -m[1][0], m[0][0]);
@@ -337,8 +523,11 @@ INLINE float2 fract(float2 x) { return frac(x); }
 INLINE float3 fract(float3 x) { return frac(x); }
 INLINE float4 fract(float4 x) { return frac(x); }
 
+INLINE float mod(float x, float y) { return fmod(x, y); }
+
 // Reimplement intrinsics for half types.
-// This shadows the intrinsic function for floats, so we also have to declare that overload.
+// This shadows the intrinsic function for floats, so we also have to declare
+// that overload.
 
 INLINE float rive_sign(float x) { return sign(x); }
 INLINE float2 rive_sign(float2 x) { return sign(x); }

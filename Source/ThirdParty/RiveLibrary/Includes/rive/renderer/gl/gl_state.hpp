@@ -4,9 +4,10 @@
 
 #pragma once
 
+#include "rive/math/aabb.hpp"
 #include "rive/renderer/gl/gles3.hpp"
 #include "rive/refcnt.hpp"
-#include "rive/shapes/paint/blend_mode.hpp"
+#include "rive/renderer/gpu.hpp"
 
 namespace rive::gpu
 {
@@ -14,15 +15,33 @@ namespace rive::gpu
 class GLState : public RefCnt<GLState>
 {
 public:
-    GLState(const GLCapabilities& capabilities) : m_capabilities(capabilities) { invalidate(); }
+    GLState(const GLCapabilities& capabilities) : m_capabilities(capabilities)
+    {
+        invalidate();
+    }
+
+    const GLCapabilities& capabilities() const { return m_capabilities; }
 
     void invalidate();
 
-    void setBlendEquation(BlendMode);
-    void disableBlending();
-
-    void setWriteMasks(bool colorWriteMask, bool depthWriteMask, GLuint stencilWriteMask);
+    // Set the scissor with a top-down oriented box. (GLState will Y-flip the
+    // box before passing it to GL, which is why this function needs
+    // renderTargetHeight.)
+    void setScissor(IAABB, uint32_t renderTargetHeight);
+    // Set the scissor with the raw values that will be passed to glScissor().
+    void setScissorRaw(uint32_t left,
+                       uint32_t top,
+                       uint32_t width,
+                       uint32_t height);
+    void disableScissor();
+    void setDepthStencilEnabled(bool depthEnabled, bool stencilEnabled);
     void setCullFace(GLenum);
+    void setWriteMasks(bool colorWriteMask,
+                       bool depthWriteMask,
+                       uint8_t stencilWriteMask);
+    void setBlendEquation(gpu::BlendEquation);
+    void disableBlending() { setBlendEquation(gpu::BlendEquation::none); }
+    void setPipelineState(const gpu::PipelineState&);
 
     void bindProgram(GLuint);
     void bindVAO(GLuint);
@@ -34,21 +53,27 @@ public:
 
 private:
     const GLCapabilities m_capabilities;
-    GLenum m_blendEquation;
+    std::array<uint32_t, 4> m_scissorBox;
+    bool m_scissorEnabled;
+    bool m_depthTestEnabled;
+    bool m_stencilTestEnabled;
     bool m_colorWriteMask;
     bool m_depthWriteMask;
+    gpu::BlendEquation m_blendEquation;
     GLuint m_stencilWriteMask;
     GLenum m_cullFace;
     GLuint m_boundProgramID;
     GLuint m_boundVAO;
     GLuint m_boundArrayBufferID;
     GLuint m_boundUniformBufferID;
-    GLuint m_boundPixelUnpackBufferID;
 
     struct
     {
-        bool blendEquation : 1;
+        bool scissorBox : 1;
+        bool scissorEnabled : 1;
+        bool depthStencilEnabled : 1;
         bool writeMasks : 1;
+        bool blendEquation : 1;
         bool cullFace : 1;
         bool boundProgramID : 1;
         bool boundVAO : 1;
