@@ -19,6 +19,7 @@
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Logs/RiveLog.h"
 #include "Blueprint/UserWidget.h"
+#include "HAL/IConsoleManager.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/SOverlay.h"
 
@@ -78,6 +79,82 @@ const TCHAR* TextSizingToString(rive::TextSizing Sizing)
             return TEXT("fixed");
     }
     return TEXT("unknown");
+}
+
+static TAutoConsoleVariable<int32> CVarRadRiveRenderLayoutDiag(
+    TEXT("rad.Rive.RenderLayoutDiag"),
+    0,
+    TEXT("Enable Rad Rive renderer-side layout diagnostics."),
+    ECVF_Default);
+
+bool ShouldLogRadRiveRenderLayoutDiag()
+{
+    const IConsoleVariable* CVar =
+        IConsoleManager::Get().FindConsoleVariable(TEXT("rad.Rive.RenderLayoutDiag"));
+    return CVar && CVar->GetInt() != 0;
+}
+
+void LogRadRiveRenderLayoutDiagnostic(
+    const URiveArtboard* RiveArtboard,
+    rive::ArtboardInstance* ArtboardInstance,
+    const FSlateRect& RenderBounds,
+    rive::Fit Fit,
+    float TotalScale,
+    bool bWasLayoutDirty,
+    bool bWasRenderBoundsDirty,
+    bool bRefreshedLayout)
+{
+    static std::atomic<int32> RemainingDumps{240};
+    if (!ShouldLogRadRiveRenderLayoutDiag() ||
+        RemainingDumps.fetch_sub(1, std::memory_order_relaxed) <= 0)
+    {
+        return;
+    }
+
+    const rive::AABB Bounds = ArtboardInstance->bounds();
+    const rive::AABB LayoutBounds = ArtboardInstance->layoutBounds();
+    const float BoundsWidth = Bounds.right() - Bounds.left();
+    const float BoundsHeight = Bounds.bottom() - Bounds.top();
+    const FVector2f RenderSize = RenderBounds.GetSize();
+    const float AlignScaleX = BoundsWidth > 0.0f ? RenderSize.X / BoundsWidth : 0.0f;
+    const float AlignScaleY = BoundsHeight > 0.0f ? RenderSize.Y / BoundsHeight : 0.0f;
+
+    UE_LOG(LogRive,
+           Warning,
+           TEXT("RadRiveRenderDiag artboardObject=%s artboardName=%hs fit=%d totalScale=%.3f "
+                "layoutDirty=%d renderBoundsDirty=%d refreshed=%d nativeWidth=%.2f nativeHeight=%.2f "
+                "defaultSize=(%.2f %.2f) bounds=(%.2f %.2f %.2f %.2f) boundsSize=(%.2f %.2f) "
+                "layoutBounds=(%.2f %.2f %.2f %.2f) renderBounds=(%.2f %.2f %.2f %.2f) "
+                "renderSize=(%.2f %.2f) alignScale=(%.6f %.6f)"),
+           *GetNameSafe(RiveArtboard),
+           ArtboardInstance->name().c_str(),
+           static_cast<int32>(Fit),
+           TotalScale,
+           bWasLayoutDirty ? 1 : 0,
+           bWasRenderBoundsDirty ? 1 : 0,
+           bRefreshedLayout ? 1 : 0,
+           ArtboardInstance->width(),
+           ArtboardInstance->height(),
+           IsValid(RiveArtboard) ? RiveArtboard->ArtboardDefaultSize.X : 0.0,
+           IsValid(RiveArtboard) ? RiveArtboard->ArtboardDefaultSize.Y : 0.0,
+           Bounds.left(),
+           Bounds.top(),
+           Bounds.right(),
+           Bounds.bottom(),
+           BoundsWidth,
+           BoundsHeight,
+           LayoutBounds.left(),
+           LayoutBounds.top(),
+           LayoutBounds.right(),
+           LayoutBounds.bottom(),
+           RenderBounds.Left,
+           RenderBounds.Top,
+           RenderBounds.Right,
+           RenderBounds.Bottom,
+           RenderSize.X,
+           RenderSize.Y,
+           AlignScaleX,
+           AlignScaleY);
 }
 
 void LogRiveLayoutDiagnostics(rive::ArtboardInstance* ArtboardInstance)
@@ -519,6 +596,8 @@ public:
         const FVector2f RenderSize = RenderBoundsLocal.GetSize();
 
         bool bRefreshedLayout = false;
+        const bool bWasLayoutDirty = bLayoutDirty;
+        const bool bWasRenderBoundsDirty = bRenderBoundsDirty;
 
         if (bIsLayoutFit && bHasValidLayoutScale && RenderSize.X > 0.0f &&
             RenderSize.Y > 0.0f && (bLayoutDirty || bRenderBoundsDirty))
@@ -547,7 +626,19 @@ public:
         }
         else if (bLayoutDirty)
         {
-            ArtboardInstance->resetSize();
+            if (RiveArtboardLocal->HasNativeArtboardSizeOverride())
+            {
+                const FVector2D OverrideSize =
+                    RiveArtboardLocal->GetNativeArtboardSizeOverride();
+                ArtboardInstance->width(
+                    static_cast<float>(OverrideSize.X));
+                ArtboardInstance->height(
+                    static_cast<float>(OverrideSize.Y));
+            }
+            else
+            {
+                ArtboardInstance->resetSize();
+            }
 
             if (auto NativeStateMachineHandle =
                     RiveArtboardLocal->GetStateMachineHandle();
@@ -587,6 +678,14 @@ public:
                                             Fit,
                                             TotalScale);
         }
+        LogRadRiveRenderLayoutDiagnostic(RiveArtboardLocal.Get(),
+                                         ArtboardInstance,
+                                         RenderBoundsLocal,
+                                         Fit,
+                                         TotalScale,
+                                         bWasLayoutDirty,
+                                         bWasRenderBoundsDirty,
+                                         bRefreshedLayout);
         ArtboardInstance->draw(Renderer.Get());
         Renderer->restore();
 

@@ -55,6 +55,18 @@ public:
     // Reset the underlying artboard instance size.
     UFUNCTION(BlueprintCallable, Category = Rive)
     void ResetNativeArtboardSize();
+    bool HasNativeArtboardSizeOverride() const
+    {
+        return bHasNativeArtboardSizeOverride;
+    }
+    FVector2D GetNativeArtboardSizeOverride() const
+    {
+        return NativeArtboardSizeOverride;
+    }
+    float GetNativeArtboardSizeOverrideScale() const
+    {
+        return NativeArtboardSizeOverrideScale;
+    }
 
     // Marks native layout bounds stale. Slate consumes this before drawing.
     UFUNCTION(BlueprintCallable, Category = Rive)
@@ -247,6 +259,10 @@ private:
     TSharedPtr<FRiveStateMachine> StateMachine = nullptr;
 
     TWeakObjectPtr<URiveFile> RiveFile;
+
+    bool bHasNativeArtboardSizeOverride = false;
+    FVector2D NativeArtboardSizeOverride = FVector2D::ZeroVector;
+    float NativeArtboardSizeOverrideScale = 1.0f;
 
     UPROPERTY(Transient,
               VisibleInstanceOnly,

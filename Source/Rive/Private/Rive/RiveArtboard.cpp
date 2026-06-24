@@ -493,6 +493,9 @@ void URiveArtboard::SetNativeArtboardSizeWithScale(float Width,
                                                    float Height,
                                                    float Scale)
 {
+    bHasNativeArtboardSizeOverride = true;
+    NativeArtboardSizeOverride = FVector2D(Width, Height);
+    NativeArtboardSizeOverrideScale = Scale;
     InvalidateLayout();
     auto& Builder = IRiveRendererModule::Get().GetCommandBuilder();
     Builder.SetArtboardSize(NativeArtboardHandle, Width, Height, Scale);
@@ -504,6 +507,9 @@ void URiveArtboard::SetNativeArtboardSizeWithScale(float Width,
 
 void URiveArtboard::ResetNativeArtboardSize()
 {
+    bHasNativeArtboardSizeOverride = false;
+    NativeArtboardSizeOverride = FVector2D::ZeroVector;
+    NativeArtboardSizeOverrideScale = 1.0f;
     InvalidateLayout();
     auto& Builder = IRiveRendererModule::Get().GetCommandBuilder();
     Builder.ResetArtboardSize(NativeArtboardHandle);
