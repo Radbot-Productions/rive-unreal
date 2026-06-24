@@ -38,6 +38,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
+#include "rive/shapes/paint/image_sampler.hpp"
 
 THIRD_PARTY_INCLUDES_START
 #include "rive/renderer/rive_render_image.hpp"
@@ -60,6 +61,23 @@ THIRD_PARTY_INCLUDES_END
 #ifndef RHI_ATLAS_ONLY_FEATHER
 #define RHI_ATLAS_ONLY_FEATHER 0
 #endif
+
+static TAutoConsoleVariable<int32> CVarRadRiveForceBilinearImageSampling(
+    TEXT("rad.Rive.ForceBilinearImageSampling"),
+    1,
+    TEXT("Force Rive image texture magnification/minification to bilinear while preserving wrap mode. 0 preserves Rive-authored sampler filtering."),
+    ECVF_RenderThreadSafe);
+
+static uint8 ResolveRiveImageSamplerKey(const rive::ImageSampler& Sampler)
+{
+    const uint8 SamplerKey = Sampler.asKey();
+    if (CVarRadRiveForceBilinearImageSampling.GetValueOnAnyThread() == 0)
+    {
+        return SamplerKey;
+    }
+
+    return SamplerKey % (rive::NUM_IMAGE_WRAP * rive::NUM_IMAGE_WRAP);
+}
 
 static const FString NameForDrawType(rive::gpu::DrawType InDrawType)
 {
@@ -2280,12 +2298,14 @@ void RenderContextRHIImpl::flush(const FlushDescriptor& desc)
 
                                 if (batch->imageTexture)
                                 {
-                                    check(
-                                        batch->imageSampler.asKey() <
-                                        ImageSampler::MAX_SAMPLER_PERMUTATIONS);
+                                    const uint8 ImageSamplerKey =
+                                        ResolveRiveImageSamplerKey(
+                                            batch->imageSampler);
+                                    check(ImageSamplerKey <
+                                          ImageSampler::
+                                              MAX_SAMPLER_PERMUTATIONS);
                                     PassParameters->PS.imageSampler =
-                                        imageSamplers[batch->imageSampler
-                                                          .asKey()];
+                                        imageSamplers[ImageSamplerKey];
                                     auto imageTexture =
                                         static_cast<TextureRHIImpl*>(
                                             batch->imageTexture);
@@ -2617,10 +2637,12 @@ void RenderContextRHIImpl::flush(const FlushDescriptor& desc)
 
                 PassParameters->FlushUniforms = flushUniforms;
                 PassParameters->PS.gradSampler = m_linearSampler;
-                check(batch.imageSampler.asKey() <
+                const uint8 ImageSamplerKey =
+                    ResolveRiveImageSamplerKey(batch.imageSampler);
+                check(ImageSamplerKey <
                       ImageSampler::MAX_SAMPLER_PERMUTATIONS);
                 PassParameters->PS.imageSampler =
-                    m_imageSamplers[batch.imageSampler.asKey()];
+                    m_imageSamplers[ImageSamplerKey];
                 PassParameters->PS.atlasSampler = m_atlasSampler;
                 PassParameters->PS.featherSampler = m_featherSampler;
                 PassParameters->PS.GLSL_dstColorTexture_raw = MSAAColorTexture;
@@ -2867,10 +2889,12 @@ void RenderContextRHIImpl::flush(const FlushDescriptor& desc)
 
                 PassParameters->FlushUniforms = flushUniforms;
                 PassParameters->PS.gradSampler = m_linearSampler;
-                check(batch.imageSampler.asKey() <
+                const uint8 ImageSamplerKey =
+                    ResolveRiveImageSamplerKey(batch.imageSampler);
+                check(ImageSamplerKey <
                       ImageSampler::MAX_SAMPLER_PERMUTATIONS);
                 PassParameters->PS.imageSampler =
-                    m_imageSamplers[batch.imageSampler.asKey()];
+                    m_imageSamplers[ImageSamplerKey];
                 PassParameters->PS.atlasSampler = m_atlasSampler;
                 PassParameters->PS.featherSampler = m_featherSampler;
                 PassParameters->PS.GLSL_dstColorTexture_raw = MSAAColorTexture;

@@ -19,10 +19,7 @@ void FRiveTextureResource::InitRHI(FRHICommandListBase& RHICmdList)
     if (RiveTexture)
     {
         FSamplerStateInitializerRHI SamplerStateInitializer(
-            (ESamplerFilter)UDeviceProfileManager::Get()
-                .GetActiveProfile()
-                ->GetTextureLODSettings()
-                ->GetSamplerFilter(RiveTexture),
+            SF_Bilinear,
             AM_Border,
             AM_Border,
             AM_Wrap);
