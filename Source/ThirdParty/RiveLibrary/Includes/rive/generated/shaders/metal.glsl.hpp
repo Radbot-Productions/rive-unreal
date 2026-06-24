@@ -5,577 +5,173 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char metal[] = R"===(/*
- * Copyright 2023 Rive
- */
-
-// This header provides Metal-specific #defines and declarations that enable our
-// shaders to be compiled on MSL and GLSL both.
-
-#define METAL
-
-// #define native metal types if their names are being rewritten.
-#define _ARE_TOKEN_NAMES_PRESERVED
-#ifndef _ARE_TOKEN_NAMES_PRESERVED
-#define half  half
-#define half2  half2
-#define half3  half3
-#define half4  half4
-#define short  short
-#define short2  short2
-#define short3  short3
-#define short4  short4
-#define ushort  ushort
-#define ushort2  ushort2
-#define ushort3  ushort3
-#define ushort4  ushort4
-#define float2  float2
-#define float3  float3
-#define packed_float3  packed_float3
-#define float4  float4
-#define bool2  bool2
-#define bool3  bool3
-#define bool4  bool4
-#define uint2  uint2
-#define uint3  uint3
-#define uint4  uint4
-#define int2  int2
-#define int3  int3
-#define int4  int4
-#define float4x2  float4x2
-#define ushort  ushort
-#define float2x2  float2x2
-#define half3x3  half3x3
-#define half2x3  half2x3
-#define half4x4  half4x4
+const char metal[] = R"===(#ifndef _ARE_TOKEN_NAMES_PRESERVED
+#define d half
+#define D half2
+#define r half3
+#define i half4
+#define X ushort
+#define c float2
+#define V float3
+#define L3 packed_float3
+#define g float4
+#define E4 bool2
+#define n6 bool3
+#define w7 bool4
+#define W0 uint2
+#define Q uint4
+#define U int2
+#define Z5 int4
+#define X ushort
+#define Z float2x2
+#define V6 half3x3
+#define W6 half2x3
+#define h5 half4x4
 #endif
-
-#define INLINE  inline
-#define OUT(ARG_TYPE)  thread ARG_TYPE&
-#define INOUT(ARG_TYPE)  thread ARG_TYPE&
-
-#define equal(A, B)  ((A) == (B))
-#define notEqual(A, B)  ((A) != (B))
-#define lessThanEqual(A, B)  ((A) <= (B))
-#define lessThan(A, B)  ((A) < (B))
-#define greaterThan(A, B)  ((A) > (B))
-#define greaterThanEqual(A, B)  ((A) >= (B))
-#define MUL(A, B)  ((A) * (B))
-#define inversesqrt  rsqrt
-
-#define UNIFORM_BLOCK_BEGIN(IDX, NAME)                                          \
-    struct NAME                                                                \
-    {
-#define UNIFORM_BLOCK_END(NAME)                                                 \
-    }                                                                          \
-    ;
-
-#define ATTR_BLOCK_BEGIN(NAME)                                                  \
-    struct NAME                                                                \
-    {
-#define ATTR(IDX, TYPE, NAME)  TYPE NAME
-#define ATTR_BLOCK_END                                                          \
-    }                                                                          \
-    ;
-#define ATTR_UNPACK(ID, attrs, NAME, TYPE)  TYPE NAME = attrs[ID].NAME
-
-#define VARYING_BLOCK_BEGIN                                                     \
-    struct Varyings                                                            \
-    {
-#define VARYING(IDX, TYPE, NAME)  TYPE NAME
-#define FLAT  [[flat]]
-#define NO_PERSPECTIVE  [[center_no_perspective]]
-#ifndef EXPORTED_OPTIONALLY_FLAT
-// Don't use no-perspective interpolation for varyings that need to be flat.
-// No-persective interpolation appears to break the guarantee that a varying ==
-// "x" when all barycentric values also == "x". Default (perspective-correct)
-// interpolation does preserve this guarantee, and seems to be faster faster
-// than flat on Apple Silicon.
-#define EXPORTED_OPTIONALLY_FLAT
+#define e inline
+#define e1(g2) thread g2&
+#define T4(g2) thread g2&
+#define equal(A,F) ((A)==(F))
+#define notEqual(A,F) ((A)!=(F))
+#define lessThan(A,F) ((A)<(F))
+#define greaterThan(A,F) ((A)>(F))
+#define Z0(A,F) ((A)*(F))
+#define inversesqrt rsqrt
+#define m6(f,a) struct a{
+#define v7(a) };
+#define A1(a) struct a{
+#define p0(f,W,a) W a
+#define B1 };
+#define q0(O8,G,a,W) W a=G[O8].a
+#define h2 struct f0{
+#define c0(f,W,a) W a
+#define R4 [[flat]]
+#define J0 [[center_no_perspective]]
+#ifndef OB
+#define OB
 #endif
-#define VARYING_BLOCK_END                                                       \
-    float4 _pos [[position]] [[invariant]];                                  \
-    }                                                                          \
-    ;
-
-#define VARYING_INIT(NAME, TYPE)  thread TYPE& NAME = _varyings.NAME
-#define VARYING_PACK(NAME)
-#define VARYING_UNPACK(NAME, TYPE)  TYPE NAME = _varyings.NAME
-
-#define VERTEX_STORAGE_BUFFER_BLOCK_BEGIN                                       \
-    struct VertexStorageBuffers                                                \
-    {
-#define VERTEX_STORAGE_BUFFER_BLOCK_END                                         \
-    }                                                                          \
-    ;
-
-#define FRAG_STORAGE_BUFFER_BLOCK_BEGIN                                         \
-    struct FragmentStorageBuffers                                              \
-    {
-#define FRAG_STORAGE_BUFFER_BLOCK_END                                           \
-    }                                                                          \
-    ;
-
-#define STORAGE_BUFFER_U32x2(IDX, GLSL_STRUCT_NAME, NAME)                       \
-    constant uint2* NAME [[buffer(METAL_BUFFER_IDX(IDX))]]
-#define STORAGE_BUFFER_U32x4(IDX, GLSL_STRUCT_NAME, NAME)                       \
-    constant uint4* NAME [[buffer(METAL_BUFFER_IDX(IDX))]]
-#define STORAGE_BUFFER_F32x4(IDX, GLSL_STRUCT_NAME, NAME)                       \
-    constant float4* NAME [[buffer(METAL_BUFFER_IDX(IDX))]]
-#define STORAGE_BUFFER_LOAD4(NAME, I)  _buffers.NAME[I]
-#define STORAGE_BUFFER_LOAD2(NAME, I)  _buffers.NAME[I]
-
-#define VERTEX_TEXTURE_BLOCK_BEGIN                                              \
-    struct VertexTextures                                                      \
-    {
-#define VERTEX_TEXTURE_BLOCK_END                                                \
-    }                                                                          \
-    ;
-
-#define FRAG_TEXTURE_BLOCK_BEGIN                                                \
-    struct FragmentTextures                                                    \
-    {
-#define FRAG_TEXTURE_BLOCK_END                                                  \
-    }                                                                          \
-    ;
-
-#define DYNAMIC_SAMPLER_BLOCK_BEGIN                                             \
-    struct DynamicSamplers                                                     \
-    {
-#define DYNAMIC_SAMPLER_BLOCK_END                                               \
-    }                                                                          \
-    ;
-
-#define TEXTURE_RGBA32UI(SET, IDX, NAME)  [[texture(IDX)]] texture2d<uint> NAME
-#define TEXTURE_RGBA32F(SET, IDX, NAME)  [[texture(IDX)]] texture2d<float> NAME
-#define TEXTURE_RGBA8(SET, IDX, NAME)  [[texture(IDX)]] texture2d<half> NAME
-#define TEXTURE_R16F(SET, IDX, NAME)  [[texture(IDX)]] texture2d<half> NAME
-#define TEXTURE_R16F_1D_ARRAY(SET, IDX, NAME)                                   \
-    [[texture(IDX)]] texture1d_array<half> NAME
-
-#define SAMPLER_LINEAR(TEXTURE_IDX, NAME)                                       \
-    constexpr sampler NAME(filter::linear, mip_filter::none);
-#define SAMPLER_MIPMAP(TEXTURE_IDX, NAME)                                       \
-    constexpr sampler NAME(filter::linear, mip_filter::linear);
-#define SAMPLER_DYNAMIC(SET, IDX, NAME)  [[sampler(IDX)]] sampler NAME;
-#define TEXEL_FETCH(TEXTURE, COORD)  _textures.TEXTURE.read(uint2(COORD))
-#define TEXTURE_SAMPLE(TEXTURE, SAMPLER_NAME, COORD)                            \
-    _textures.TEXTURE.sample(SAMPLER_NAME, COORD)
-#define TEXTURE_SAMPLE_LOD(TEXTURE, SAMPLER_NAME, COORD, LOD)                   \
-    _textures.TEXTURE.sample(SAMPLER_NAME, COORD, level(LOD))
-#define TEXTURE_SAMPLE_LODBIAS(TEXTURE, SAMPLER_NAME, COORD, LODBIAS)           \
-    _textures.TEXTURE.sample(SAMPLER_NAME, COORD, bias(LODBIAS))
-#define TEXTURE_SAMPLE_GRAD(TEXTURE, SAMPLER_NAME, COORD, DDX, DDY)             \
-    _textures.TEXTURE.sample(SAMPLER_NAME, COORD, gradient2d(DDX, DDY))
-#define TEXTURE_GATHER(TEXTURE, SAMPLER_NAME, COORD, TEXTURE_INVERSE_SIZE)      \
-    _textures.TEXTURE.gather(SAMPLER_NAME, (COORD) * (TEXTURE_INVERSE_SIZE))
-#define TEXTURE_SAMPLE_DYNAMIC(TEXTURE, SAMPLER_NAME, COORD)                    \
-    _textures.TEXTURE.sample(_dynamicSampler.SAMPLER_NAME, COORD)
-#define TEXTURE_SAMPLE_DYNAMIC_LOD(TEXTURE, SAMPLER_NAME, COORD, LOD)           \
-    _textures.TEXTURE.sample(_dynamicSampler.SAMPLER_NAME, COORD, level(LOD))
-#define TEXTURE_SAMPLE_DYNAMIC_LODBIAS(TEXTURE, SAMPLER_NAME, COORD, LODBIAS)   \
-    _textures.TEXTURE.sample(_dynamicSampler.SAMPLER_NAME,                    \
-                              COORD,                                           \
-                              bias(LODBIAS))
-#define TEXTURE_SAMPLE_LOD_1D_ARRAY(TEXTURE,                                   \
-                                    SAMPLER_NAME,                              \
-                                    X,                                         \
-                                    ARRAY_INDEX,                               \
-                                    ARRAY_INDEX_NORMALIZED,                    \
-                                    LOD)                                        \
-    _textures.TEXTURE.sample(SAMPLER_NAME, X, ARRAY_INDEX)
-
-#define VERTEX_CONTEXT_DECL                                                     \
-    , constant EXPORTED_FlushUniforms &uniforms, VertexTextures _textures,            \
-        VertexStorageBuffers _buffers
-#define VERTEX_CONTEXT_UNPACK  , uniforms, _textures, _buffers
-
-#ifdef EXPORTED_ENABLE_INSTANCE_INDEX
-#define VERTEX_MAIN(NAME, Attrs, attrs, _vertexID, _instanceID)                 \
-    __attribute__((visibility("default"))) Varyings vertex NAME(            \
-        uint _vertexID [[vertex_id]],                                         \
-        uint _instanceID [[instance_id]],                                     \
-        constant uint& _baseInstance                                          \
-        [[buffer(METAL_BUFFER_IDX(PATH_BASE_INSTANCE_UNIFORM_BUFFER_IDX))]],  \
-        constant EXPORTED_FlushUniforms& uniforms                                     \
-        [[buffer(METAL_BUFFER_IDX(FLUSH_UNIFORM_BUFFER_IDX))]],               \
-        constant Attrs* attrs [[buffer(0)]],                                 \
-        VertexTextures _textures,                                              \
-        VertexStorageBuffers _buffers)                                         \
-    {                                                                          \
-        _instanceID += _baseInstance;                                          \
-        Varyings _varyings;
+#define a2 g L0[[position]][[invariant]];};
+#define Y(a,W) thread W&a=R.a
+#define k0(a)
+#define B(a,W) W a=R.a
+#define A4 struct T8{
+#define B4 };
+#define N3 struct B5{
+#define O3 };
+#define J5(f,y1,a) constant W0*a[[buffer(Q0(f))]]
+#define F4(f,y1,a) constant Q*a[[buffer(Q0(f))]]
+#define K5(f,y1,a) constant g*a[[buffer(Q0(f))]]
+#define P0(a,y0) x2.a[y0]
+#define L5(a,y0) x2.a[y0]
+#define R3 struct U8{
+#define S3 };
+#define B3 struct H3{
+#define C3 };
+#define a5 struct E7{
+#define c5 };
+#define D4(M,f,a) [[texture(f)]]texture2d<uint>a
+#define e5(M,f,a) [[texture(f)]]texture2d<float>a
+#define X2(M,f,a) [[texture(f)]]texture2d<d>a
+#define k5(M,f,a) [[texture(f)]]texture2d<d>a
+#define f6(M,f,a) [[texture(f)]]texture1d_array<d>a
+#define X3(x7,a) constexpr sampler a(filter::linear,mip_filter::none);
+#define o6(M,f,a) [[sampler(f)]]sampler a;
+#define U3(a) [[sampler(T3)]]sampler a;
+#define v1(h0,l) M0.h0.read(W0(l))
+#define r5(h0,p,l) M0.h0.sample(p,l)
+#define m2(h0,p,l,X0) M0.h0.sample(p,l,level(X0))
+#define v5(h0,p,l,P1) M0.h0.sample(p,l,bias(P1))
+#define g8(h0,p,l) M0.h0.sample(K4.p,l)
+#define Q6(h0,p,l,X0) M0.h0.sample(K4.p,l,level(X0))
+#define y7(h0,p,l,P1) M0.h0.sample(K4.p,l,bias(P1))
+#define U6(h0,p,q,p6,Q8,X0) M0.h0.sample(p,q,p6)
+#define i6 ,constant NB&k,U8 M0,T8 x2
+#define v3 ,k,M0,x2
+#ifdef GE
+#define C1(a,a0,G,v,T) __attribute__((visibility("default")))f0 vertex a(uint v[[vertex_id]],uint T[[instance_id]],constant uint&Ag[[buffer(Q0(zc))]],constant NB&k[[buffer(Q0(n3))]],constant a0*G[[buffer(0)]],U8 M0,T8 x2){T+=Ag;f0 R;
 #else
-#define VERTEX_MAIN(NAME, Attrs, attrs, _vertexID, _instanceID)                 \
-    __attribute__((visibility("default"))) Varyings vertex NAME(            \
-        uint _vertexID [[vertex_id]],                                         \
-        uint _instanceID [[instance_id]],                                     \
-        constant EXPORTED_FlushUniforms& uniforms                                     \
-        [[buffer(METAL_BUFFER_IDX(FLUSH_UNIFORM_BUFFER_IDX))]],               \
-        constant Attrs* attrs [[buffer(0)]],                                 \
-        VertexTextures _textures,                                              \
-        VertexStorageBuffers _buffers)                                         \
-    {                                                                          \
-        Varyings _varyings;
+#define C1(a,a0,G,v,T) __attribute__((visibility("default")))f0 vertex a(uint v[[vertex_id]],uint T[[instance_id]],constant NB&k[[buffer(Q0(n3))]],constant a0*G[[buffer(0)]],U8 M0,T8 x2){f0 R;
 #endif
-
-#define IMAGE_RECT_VERTEX_MAIN(NAME, Attrs, attrs, _vertexID, _instanceID)      \
-    __attribute__((visibility("default"))) Varyings vertex NAME(            \
-        uint _vertexID [[vertex_id]],                                         \
-        constant EXPORTED_FlushUniforms& uniforms                                     \
-        [[buffer(METAL_BUFFER_IDX(FLUSH_UNIFORM_BUFFER_IDX))]],               \
-        constant EXPORTED_ImageDrawUniforms& imageDrawUniforms                        \
-        [[buffer(METAL_BUFFER_IDX(IMAGE_DRAW_UNIFORM_BUFFER_IDX))]],          \
-        constant Attrs* attrs [[buffer(0)]],                                 \
-        VertexTextures _textures,                                              \
-        VertexStorageBuffers _buffers)                                         \
-    {                                                                          \
-        Varyings _varyings;
-
-#define IMAGE_MESH_VERTEX_MAIN(NAME,                                           \
-                               PositionAttr,                                   \
-                               position,                                       \
-                               UVAttr,                                         \
-                               uv,                                             \
-                               _vertexID)                                       \
-    __attribute__((visibility("default"))) Varyings vertex NAME(            \
-        uint _vertexID [[vertex_id]],                                         \
-        constant EXPORTED_FlushUniforms& uniforms                                     \
-        [[buffer(METAL_BUFFER_IDX(FLUSH_UNIFORM_BUFFER_IDX))]],               \
-        constant EXPORTED_ImageDrawUniforms& imageDrawUniforms                        \
-        [[buffer(METAL_BUFFER_IDX(IMAGE_DRAW_UNIFORM_BUFFER_IDX))]],          \
-        constant PositionAttr* position [[buffer(0)]],                       \
-        constant UVAttr* uv [[buffer(1)]])                                   \
-    {                                                                          \
-        Varyings _varyings;
-
-#define EMIT_VERTEX(POSITION)                                                   \
-    _varyings._pos = POSITION;                                                 \
-    }                                                                          \
-    return _varyings;
-
-#define FRAG_DATA_MAIN(DATA_TYPE, NAME)                                         \
-    DATA_TYPE __attribute__((visibility("default"))) fragment NAME(         \
-        Varyings _varyings [[stage_in]],                                      \
-        FragmentTextures _textures)                                            \
-    {
-
-#define FRAG_DATA_MAIN_WITH_CLOCKWISE(DATA_TYPE, NAME)                          \
-    DATA_TYPE __attribute__((visibility("default"))) fragment NAME(         \
-        Varyings _varyings [[stage_in]],                                      \
-        FragmentTextures _textures,                                            \
-        bool _clockwise [[front_facing]])                                     \
-    {
-
-#define EMIT_FRAG_DATA(VALUE)                                                   \
-    return VALUE;                                                              \
-    }
-
-#define FRAGMENT_CONTEXT_DECL                                                   \
-    , float2 _fragCoord, FragmentTextures _textures,                           \
-        FragmentStorageBuffers _buffers, DynamicSamplers _dynamicSampler
-#define FRAGMENT_CONTEXT_UNPACK                                                 \
-    , _fragCoord, _textures, _buffers, _dynamicSampler
-
-#define TEXTURE_CONTEXT_DECL  , FragmentTextures _textures
-#define TEXTURE_CONTEXT_FORWARD  , _textures
-
-#define CLIP_CONTEXT_FORWARD
-#define CLIP_CONTEXT_UNPACK
-
-#ifdef EXPORTED_PLS_IMPL_DEVICE_BUFFER
-
-#define PLS_BLOCK_BEGIN                                                         \
-    struct PLS                                                                 \
-    {
-#ifdef EXPORTED_PLS_IMPL_DEVICE_BUFFER_RASTER_ORDERED
-// Apple Silicon doesn't support fragment-fragment memory barriers, so on this
-// hardware we use raster order groups instead. Since the PLS plane indices
-// collide with other buffer bindings, offset the binding indices of these
-// buffers by DEFAULT_BINDINGS_SET_SIZE.
-#define PLS_DECL4F(IDX, NAME)                                                   \
-    device uint* NAME                                                         \
-        [[buffer(METAL_BUFFER_IDX(IDX + DEFAULT_BINDINGS_SET_SIZE)),          \
-          raster_order_group(0)]]
-#define PLS_DECLUI(IDX, NAME)                                                   \
-    device uint* NAME                                                         \
-        [[buffer(METAL_BUFFER_IDX(IDX + DEFAULT_BINDINGS_SET_SIZE)),          \
-          raster_order_group(0)]]
-#define PLS_DECLUI_UAV(IDX, NAME)                                               \
-    device atomic_uint* NAME                                                 \
-        [[buffer(METAL_BUFFER_IDX(IDX + DEFAULT_BINDINGS_SET_SIZE)),          \
-          raster_order_group(0)]]
+#define S7(a,a0,G,v,T) __attribute__((visibility("default")))f0 vertex a(uint v[[vertex_id]],constant NB&k[[buffer(Q0(n3))]],constant LC&A0[[buffer(Q0(a6))]],constant a0*G[[buffer(0)]],U8 M0,T8 x2){f0 R;
+#define E6(a,h3,i3,w3,x3,v) __attribute__((visibility("default")))f0 vertex a(uint v[[vertex_id]],constant NB&k[[buffer(Q0(n3))]],constant LC&A0[[buffer(Q0(a6))]],constant h3*i3[[buffer(0)]],constant w3*x3[[buffer(1)]]){f0 R;
+#define D1(A5) R.L0=A5;}return R;
+#define Y2(Q1,a) Q1 __attribute__((visibility("default")))fragment a(f0 R[[stage_in]],H3 M0){
+#define q6(Q1,a) Q1 __attribute__((visibility("default")))fragment a(f0 R[[stage_in]],H3 M0,bool r6[[front_facing]]){
+#define G2(C) return C;}
+#define G6 ,c S,H3 M0,B5 x2,E7 K4
+#define S2 ,S,M0,x2,K4
+#define F3 ,H3 M0
+#define g1 ,M0
+#define a7
+#define w5
+#ifdef HF
+#define J1 struct n1{
+#ifdef IF
+#define r0(f,a) device uint*a[[buffer(Q0(f+c6)),raster_order_group(0)]]
+#define k1(f,a) device uint*a[[buffer(Q0(f+c6)),raster_order_group(0)]]
+#define E2(f,a) device atomic_uint*a[[buffer(Q0(f+c6)),raster_order_group(0)]]
 #else
-// Since the PLS plane indices collide with other buffer bindings, offset the
-// binding indices of these buffers by DEFAULT_BINDINGS_SET_SIZE.
-#define PLS_DECL4F(IDX, NAME)                                                   \
-    device uint* NAME                                                         \
-        [[buffer(METAL_BUFFER_IDX(IDX + DEFAULT_BINDINGS_SET_SIZE))]]
-#define PLS_DECLUI(IDX, NAME)                                                   \
-    device uint* NAME                                                         \
-        [[buffer(METAL_BUFFER_IDX(IDX + DEFAULT_BINDINGS_SET_SIZE))]]
-#define PLS_DECLUI_UAV(IDX, NAME)                                               \
-    device atomic_uint* NAME                                                 \
-        [[buffer(METAL_BUFFER_IDX(IDX + DEFAULT_BINDINGS_SET_SIZE))]]
-#endif // @PLS_IMPL_DEVICE_BUFFER_RASTER_ORDERED
-#define PLS_BLOCK_END                                                           \
-    }                                                                          \
-    ;
-#define PLS_CONTEXT_DECL  , PLS _pls, uint _plsIdx
-#define PLS_CONTEXT_UNPACK  , _pls, _plsIdx
-
-#define PLS_LOAD4F(PLANE)  unpackUnorm4x8(_pls.PLANE[_plsIdx])
-#define PLS_LOADUI(PLANE)  _pls.PLANE[_plsIdx]
-#define PLS_LOADUI_UAV(PLANE)                                                   \
-    atomic_load_explicit(&_pls.PLANE[_plsIdx],                                \
-                          memory_order::memory_order_relaxed)
-#define PLS_STORE4F(PLANE, VALUE)  _pls.PLANE[_plsIdx] = packUnorm4x8(VALUE)
-#define PLS_STOREUI(PLANE, VALUE)  _pls.PLANE[_plsIdx] = (VALUE)
-#define PLS_STOREUI_UAV(PLANE, VALUE)                                           \
-    atomic_store_explicit(&_pls.PLANE[_plsIdx],                               \
-                           VALUE,                                              \
-                           memory_order::memory_order_relaxed)
-#define PLS_PRESERVE_4F(PLANE)
-#define PLS_PRESERVE_UI(PLANE)
-
-#define PLS_ATOMIC_MAX(PLANE, X)                                                \
-    atomic_fetch_max_explicit(&_pls.PLANE[_plsIdx],                           \
-                               X,                                              \
-                               memory_order::memory_order_relaxed)
-
-#define PLS_ATOMIC_ADD(PLANE, X)                                                \
-    atomic_fetch_add_explicit(&_pls.PLANE[_plsIdx],                           \
-                               X,                                              \
-                               memory_order::memory_order_relaxed)
-
-#define PLS_INTERLOCK_BEGIN
-#define PLS_INTERLOCK_END
-
-#define PLS_METAL_MAIN(NAME)                                                    \
-    __attribute__((visibility("default"))) fragment NAME(                   \
-        PLS _pls,                                                              \
-        constant EXPORTED_FlushUniforms& uniforms                                     \
-        [[buffer(METAL_BUFFER_IDX(FLUSH_UNIFORM_BUFFER_IDX))]],               \
-        Varyings _varyings [[stage_in]],                                      \
-        FragmentTextures _textures,                                            \
-        DynamicSamplers _dynamicSampler,                                       \
-        FragmentStorageBuffers _buffers)                                       \
-    {                                                                          \
-        float2 _fragCoord = _varyings._pos.xy;                                 \
-        uint2 _plsCoord = uint2(metal::floor(_fragCoord));                    \
-        uint _plsIdx = _plsCoord.y * uniforms.renderTargetWidth + _plsCoord.x;
-
-#define PLS_METAL_MAIN_WITH_IMAGE_UNIFORMS(NAME)                                \
-    __attribute__((visibility("default"))) fragment NAME(                   \
-        PLS _pls,                                                              \
-        constant EXPORTED_FlushUniforms& uniforms                                     \
-        [[buffer(METAL_BUFFER_IDX(FLUSH_UNIFORM_BUFFER_IDX))]],               \
-        constant EXPORTED_ImageDrawUniforms& imageDrawUniforms                        \
-        [[buffer(METAL_BUFFER_IDX(IMAGE_DRAW_UNIFORM_BUFFER_IDX))]],          \
-        Varyings _varyings [[stage_in]],                                      \
-        DynamicSamplers _dynamicSampler,                                       \
-        FragmentTextures _textures,                                            \
-        FragmentStorageBuffers _buffers)                                       \
-    {                                                                          \
-        float2 _fragCoord = _varyings._pos.xy;                                 \
-        uint2 _plsCoord = uint2(metal::floor(_fragCoord));                    \
-        uint _plsIdx = _plsCoord.y * uniforms.renderTargetWidth + _plsCoord.x;
-
-#define PLS_MAIN(NAME)  void PLS_METAL_MAIN(NAME)
-#define PLS_MAIN_WITH_IMAGE_UNIFORMS(NAME)                                      \
-    void PLS_METAL_MAIN_WITH_IMAGE_UNIFORMS(NAME)
-#define EMIT_PLS  }
-
-#define PLS_FRAG_COLOR_MAIN(NAME)                                               \
-    half4 PLS_METAL_MAIN(NAME)                                                 \
-    {                                                                          \
-        half4 _fragColor;
-
-#define PLS_FRAG_COLOR_MAIN_WITH_IMAGE_UNIFORMS(NAME)                           \
-    half4 PLS_METAL_MAIN_WITH_IMAGE_UNIFORMS(NAME)                             \
-    {                                                                          \
-        half4 _fragColor;
-
-#define EMIT_PLS_AND_FRAG_COLOR                                                 \
-    }                                                                          \
-    return _fragColor;                                                         \
-    EMIT_PLS
-
-#else // Default implementation -- framebuffer reads.
-
-#define PLS_BLOCK_BEGIN                                                         \
-    struct PLS                                                                 \
-    {
-#define PLS_DECL4F(IDX, NAME)  [[color(IDX)]] half4 NAME
-#define PLS_DECLUI(IDX, NAME)  [[color(IDX)]] uint NAME
-#define PLS_DECLUI_UAV  PLS_DECLUI
-#define PLS_BLOCK_END                                                           \
-    }                                                                          \
-    ;
-#define PLS_CONTEXT_DECL  , thread PLS &_inpls, thread PLS &_pls
-#define PLS_CONTEXT_UNPACK  , _inpls, _pls
-
-#define PLS_LOAD4F(PLANE)  _inpls.PLANE
-#define PLS_LOADUI(PLANE)  _inpls.PLANE
-#define PLS_LOADUI_UAV(PLANE)  PLS_LOADUI
-#define PLS_STORE4F(PLANE, VALUE)  _pls.PLANE = (VALUE)
-#define PLS_STOREUI(PLANE, VALUE)  _pls.PLANE = (VALUE)
-#define PLS_STOREUI_UAV(PLANE)  PLS_STOREUI
-#define PLS_PRESERVE_4F(PLANE)  _pls.PLANE = _inpls.PLANE
-#define PLS_PRESERVE_UI(PLANE)  _pls.PLANE = _inpls.PLANE
-
-INLINE uint pls_atomic_max(thread uint& dst, uint x)
-{
-    uint originalValue = dst;
-    dst = metal::max(originalValue, x);
-    return originalValue;
-}
-
-#define PLS_ATOMIC_MAX(PLANE, X)  pls_atomic_max(_pls.PLANE, X)
-
-INLINE uint pls_atomic_add(thread uint& dst, uint x)
-{
-    uint originalValue = dst;
-    dst = originalValue + x;
-    return originalValue;
-}
-
-#define PLS_ATOMIC_ADD(PLANE, X)  pls_atomic_add(_pls.PLANE, X)
-
-#define PLS_INTERLOCK_BEGIN
-#define PLS_INTERLOCK_END
-
-#define PLS_METAL_MAIN(NAME, ...)                                               \
-    PLS __attribute__((visibility("default"))) fragment NAME(__VA_ARGS__)  \
-    {                                                                          \
-        float2 _fragCoord [[maybe_unused]] = _varyings._pos.xy;               \
-        PLS _pls;
-
-#define PLS_MAIN(NAME, ...)                                                     \
-    PLS_METAL_MAIN(NAME,                                                       \
-                   PLS _inpls,                                                 \
-                   constant EXPORTED_FlushUniforms& uniforms                          \
-                   [[buffer(METAL_BUFFER_IDX(FLUSH_UNIFORM_BUFFER_IDX))]],    \
-                   Varyings _varyings [[stage_in]],                           \
-                   DynamicSamplers _dynamicSampler,                            \
-                   FragmentTextures _textures,                                 \
-                   FragmentStorageBuffers _buffers)
-
-#define PLS_MAIN_WITH_IMAGE_UNIFORMS(NAME)                                      \
-    PLS_METAL_MAIN(                                                            \
-        NAME,                                                                  \
-        PLS _inpls,                                                            \
-        constant EXPORTED_FlushUniforms& uniforms                                     \
-        [[buffer(METAL_BUFFER_IDX(FLUSH_UNIFORM_BUFFER_IDX))]],               \
-        Varyings _varyings [[stage_in]],                                      \
-        FragmentTextures _textures,                                            \
-        FragmentStorageBuffers _buffers,                                       \
-        DynamicSamplers _dynamicSampler,                                       \
-        constant EXPORTED_ImageDrawUniforms& imageDrawUniforms                        \
-        [[buffer(METAL_BUFFER_IDX(IMAGE_DRAW_UNIFORM_BUFFER_IDX))]])
-
-#define EMIT_PLS                                                                \
-    }                                                                          \
-    return _pls;
-
-#define PLS_FRAG_COLOR_METAL_MAIN(NAME, ...)                                    \
-    struct FragmentOut                                                         \
-    {                                                                          \
-        half4 _color [[color(0)]];                                             \
-        PLS _pls;                                                              \
-    };                                                                         \
-    FragmentOut __attribute__((visibility("default"))) fragment NAME(       \
-        __VA_ARGS__)                                                          \
-    {                                                                          \
-        float2 _fragCoord [[maybe_unused]] = _varyings._pos.xy;               \
-        half4 _fragColor;                                                      \
-        PLS _pls;
-
-#define PLS_FRAG_COLOR_MAIN(NAME)                                               \
-    PLS_FRAG_COLOR_METAL_MAIN(                                                 \
-        NAME,                                                                  \
-        PLS _inpls,                                                            \
-        constant EXPORTED_FlushUniforms& uniforms                                     \
-        [[buffer(METAL_BUFFER_IDX(FLUSH_UNIFORM_BUFFER_IDX))]],               \
-        Varyings _varyings [[stage_in]],                                      \
-        FragmentTextures _textures,                                            \
-        FragmentStorageBuffers _buffers)
-
-#define PLS_FRAG_COLOR_MAIN_WITH_IMAGE_UNIFORMS(NAME)                           \
-    PLS_FRAG_COLOR_METAL_MAIN(                                                 \
-        NAME,                                                                  \
-        PLS _inpls,                                                            \
-        constant EXPORTED_FlushUniforms& uniforms                                     \
-        [[buffer(METAL_BUFFER_IDX(FLUSH_UNIFORM_BUFFER_IDX))]],               \
-        Varyings _varyings [[stage_in]],                                      \
-        FragmentTextures _textures,                                            \
-        FragmentStorageBuffers _buffers,                                       \
-        __VA_ARGS__ constant EXPORTED_ImageDrawUniforms& imageDrawUniforms           \
-        [[buffer(METAL_BUFFER_IDX(IMAGE_DRAW_UNIFORM_BUFFER_IDX))]])
-
-#define EMIT_PLS_AND_FRAG_COLOR                                                 \
-    }                                                                          \
-    return {._color = _fragColor, ._pls = _pls};
-
-#endif // PLS_IMPL_DEVICE_BUFFER
-
-#define PLS_DECL4F_READONLY  PLS_DECL4F
-
-#define discard  discard_fragment()
-
-using namespace metal;
-
-template<int N> INLINE vec<uint, N> floatBitsToUint(vec<float, N> x)
-{
-    return as_type<vec<uint, N>>(x);
-}
-
-template<int N> INLINE vec<int, N> floatBitsToInt(vec<float, N> x)
-{
-    return as_type<vec<int, N>>(x);
-}
-
-INLINE uint floatBitsToUint(float x) { return as_type<uint>(x); }
-
-INLINE int floatBitsToInt(float x) { return as_type<int>(x); }
-
-template<int N> INLINE vec<float, N> uintBitsToFloat(vec<uint, N> x)
-{
-    return as_type<vec<float, N>>(x);
-}
-
-INLINE float uintBitsToFloat(uint x) { return as_type<float>(x); }
-INLINE half2 unpackHalf2x16(uint x) { return as_type<half2>(x); }
-INLINE uint packHalf2x16(half2 x) { return as_type<uint>(x); }
-INLINE half4 unpackUnorm4x8(uint x) { return unpack_unorm4x8_to_half(x); }
-INLINE uint packUnorm4x8(half4 x) { return pack_half_to_unorm4x8(x); }
-
-INLINE float2x2 inverse(float2x2 m)
-{
-    float2x2 m_ = float2x2(m[1][1], -m[0][1], -m[1][0], m[0][0]);
-    float det = (m_[0][0] * m[0][0]) + (m_[0][1] * m[1][0]);
-    return m_ * (1 / det);
-}
-
-INLINE half3 mix(half3 a, half3 b, bool3 c)
-{
-    half3 result;
-    for (int i = 0; i < 3; ++i)
-        result[i] = c[i] ? b[i] : a[i];
-    return result;
-}
-
-INLINE float2 mix(float2 a, float2 b, bool2 c)
-{
-    float2 result;
-    for (int i = 0; i < 2; ++i)
-        result[i] = c[i] ? b[i] : a[i];
-    return result;
-}
-
-INLINE float2 mix(float2 a, float2 b, float t) { return mix(a, b, float2(t)); }
-
-INLINE float mod(float x, float y) { return fmod(x, y); }
+#define r0(f,a) device uint*a[[buffer(Q0(f+c6))]]
+#define k1(f,a) device uint*a[[buffer(Q0(f+c6))]]
+#define E2(f,a) device atomic_uint*a[[buffer(Q0(f+c6))]]
+#endif
+#define K1 };
+#define P3 ,n1 R0,uint C0
+#define M1 ,R0,C0
+#define H0(h) unpackUnorm4x8(R0.h[C0])
+#define d1(h) R0.h[C0]
+#define T2(h) atomic_load_explicit(&R0.h[C0],memory_order::memory_order_relaxed)
+#define v0(h,C) R0.h[C0]=packUnorm4x8(C)
+#define f1(h,C) R0.h[C0]=(C)
+#define U2(h,C) atomic_store_explicit(&R0.h[C0],C,memory_order::memory_order_relaxed)
+#define r2(h)
+#define Y1(h)
+#define W4(h,q) atomic_fetch_max_explicit(&R0.h[C0],q,memory_order::memory_order_relaxed)
+#define X4(h,q) atomic_fetch_add_explicit(&R0.h[C0],q,memory_order::memory_order_relaxed)
+#define v2
+#define w2
+#define F7(a) __attribute__((visibility("default")))fragment a(n1 R0,constant NB&k[[buffer(Q0(n3))]],f0 R[[stage_in]],H3 M0,E7 K4,B5 x2){c S=R.L0.xy;W0 E=W0(metal::floor(S));uint C0=E.y*k.q5+E.x;
+#define yd(a) __attribute__((visibility("default")))fragment a(n1 R0,constant NB&k[[buffer(Q0(n3))]],constant LC&A0[[buffer(Q0(a6))]],f0 R[[stage_in]],E7 K4,H3 M0,B5 x2){c S=R.L0.xy;W0 E=W0(metal::floor(S));uint C0=E.y*k.q5+E.x;
+#define m1(a) void F7(a)
+#define O5(a) void yd(a)
+#define U1 }
+#define o2(a) i F7(a){i l1;
+#define r4(a) i yd(a){i l1;
+#define l3 }return l1;U1
+#else
+#define J1 struct n1{
+#define r0(f,a) [[color(f)]]i a
+#define k1(f,a) [[color(f)]]uint a
+#define E2 k1
+#define K1 };
+#define P3 ,thread n1&f4,thread n1&R0
+#define M1 ,f4,R0
+#define H0(h) f4.h
+#define d1(h) f4.h
+#define T2(h) d1
+#define v0(h,C) R0.h=(C)
+#define f1(h,C) R0.h=(C)
+#define U2(h) f1
+#define r2(h) R0.h=f4.h
+#define Y1(h) R0.h=f4.h
+e uint y5(thread uint&n0,uint x){uint a1=n0;n0=metal::max(a1,x);return a1;}
+#define W4(h,q) y5(R0.h,q)
+e uint z5(thread uint&n0,uint x){uint a1=n0;n0=a1+x;return a1;}
+#define X4(h,q) z5(R0.h,q)
+#define v2
+#define w2
+#define F7(a,...) n1 __attribute__((visibility("default")))fragment a(__VA_ARGS__){c S[[maybe_unused]]=R.L0.xy;n1 R0;
+#define m1(a,...) F7(a,n1 f4,constant NB&k[[buffer(Q0(n3))]],f0 R[[stage_in]],E7 K4,H3 M0,B5 x2)
+#define O5(a) F7(a,n1 f4,constant NB&k[[buffer(Q0(n3))]],f0 R[[stage_in]],H3 M0,B5 x2,E7 K4,constant LC&A0[[buffer(Q0(a6))]])
+#define U1 }return R0;
+#define zd(a,...) struct Bg{i Cg[[j(0)]];n1 R0;};Bg __attribute__((visibility("default")))fragment a(__VA_ARGS__){c S[[maybe_unused]]=R.L0.xy;i l1;n1 R0;
+#define o2(a) zd(a,n1 f4,constant NB&k[[buffer(Q0(n3))]],f0 R[[stage_in]],H3 M0,B5 x2)
+#define r4(a) zd(a,n1 f4,constant NB&k[[buffer(Q0(n3))]],f0 R[[stage_in]],H3 M0,B5 x2,__VA_ARGS__ constant LC&A0[[buffer(Q0(a6))]])
+#define l3 }return{.Cg=l1,.R0=R0};
+#endif
+#define n4 r0
+#define discard discard_fragment()
+using namespace metal;template<int O1>e vec<uint,O1>floatBitsToUint(vec<float,O1>x){return as_type<vec<uint,O1>>(x);}template<int O1>e vec<int,O1>floatBitsToInt(vec<float,O1>x){return as_type<vec<int,O1>>(x);}e uint floatBitsToUint(float x){return as_type<uint>(x);}e int floatBitsToInt(float x){return as_type<int>(x);}template<int O1>e vec<float,O1>uintBitsToFloat(vec<uint,O1>x){return as_type<vec<float,O1>>(x);}e float uintBitsToFloat(uint x){return as_type<float>(x);}e D unpackHalf2x16(uint x){return as_type<D>(x);}e uint packHalf2x16(D x){return as_type<uint>(x);}e i unpackUnorm4x8(uint x){return unpack_unorm4x8_to_half(x);}e uint packUnorm4x8(i x){return pack_half_to_unorm4x8(x);}e Z inverse(Z o1){Z Ma=Z(o1[1][1],-o1[0][1],-o1[1][0],o1[0][0]);float Dg=(Ma[0][0]*o1[0][0])+(Ma[0][1]*o1[1][0]);return Ma*(1/Dg);}e r mix(r o,r b,n6 I1){r G7;for(int D0=0;D0<3;++D0)G7[D0]=I1[D0]?b[D0]:o[D0];return G7;}e c mix(c o,c b,E4 I1){c G7;for(int D0=0;D0<2;++D0)G7[D0]=I1[D0]?b[D0]:o[D0];return G7;}e c mix(c o,c b,float t){return mix(o,b,c(t));}e float mod(float x,float y){return fmod(x,y);}
 )===";
 } // namespace glsl
 } // namespace gpu

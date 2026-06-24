@@ -5,23 +5,14 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char draw_input_attachment_frag[] = R"===(/*
- * Copyright 2025 Rive
- */
-
-#ifdef EXPORTED_FRAGMENT
-layout(input_attachment_index = 0,
-#ifdef EXPORTED_INPUT_ATTACHMENT_BINDING
-       binding = EXPORTED_INPUT_ATTACHMENT_BINDING,
+const char draw_input_attachment_frag[] = R"===(#ifdef FB
+layout(input_attachment_index=0,
+#ifdef SE
+binding=SE,
 #else
-       binding = 0,
+binding=0,
 #endif
-       set = PLS_TEXTURE_BINDINGS_SET) uniform lowp subpassInput
-    inputAttachment;
-
-layout(location = 0) out half4 outputColor;
-
-void main() { outputColor = subpassLoad(inputAttachment); }
+set=E3)uniform lowp subpassInput zh;layout(location=0)out i jb;void main(){jb=subpassLoad(zh);}
 #endif
 )===";
 } // namespace glsl

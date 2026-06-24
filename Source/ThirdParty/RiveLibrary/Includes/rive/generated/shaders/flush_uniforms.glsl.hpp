@@ -5,64 +5,25 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char flush_uniforms[] = R"===(#ifndef DECLARE_UNIFORM_FLOAT
-#define DECLARE_UNIFORM_FLOAT(UNIFORM_NAME)  float UNIFORM_NAME;
+const char flush_uniforms[] = R"===(#ifndef J2
+#define J2(c4) float c4;
 #endif
-#ifndef DECLARE_UNIFORM_UINT
-#define DECLARE_UNIFORM_UINT(UNIFORM_NAME)  uint UNIFORM_NAME;
+#ifndef d3
+#define d3(c4) uint c4;
 #endif
-#ifndef DECLARE_UNIFORM_INT4
-#define DECLARE_UNIFORM_INT4(UNIFORM_NAME)  int4 UNIFORM_NAME;
+#ifndef bd
+#define bd(c4) Z5 c4;
 #endif
-#ifndef DECLARE_UNIFORM_FLOAT2
-#define DECLARE_UNIFORM_FLOAT2(UNIFORM_NAME)  float2 UNIFORM_NAME;
+#ifndef r7
+#define r7(c4) c c4;
 #endif
-#ifndef DECLARE_UNIFORM_FLOAT4
-#define DECLARE_UNIFORM_FLOAT4(UNIFORM_NAME)  float4 UNIFORM_NAME;
+#ifndef Ba
+#define Ba(c4) g c4;
 #endif
-
-#ifndef FLUSH_UNIFORMS_NAME
-#define FLUSH_UNIFORMS_NAME  EXPORTED_FlushUniforms
+#ifndef cd
+#define cd NB
 #endif
-
-UNIFORM_BLOCK_BEGIN(FLUSH_UNIFORM_BUFFER_IDX, FLUSH_UNIFORMS_NAME)
-DECLARE_UNIFORM_FLOAT(gradInverseViewportY)
-DECLARE_UNIFORM_FLOAT(tessInverseViewportY)
-DECLARE_UNIFORM_FLOAT(renderTargetInverseViewportX)
-DECLARE_UNIFORM_FLOAT(renderTargetInverseViewportY)
-DECLARE_UNIFORM_UINT(renderTargetWidth)
-DECLARE_UNIFORM_UINT(renderTargetHeight)
-// Only used if clears are implemented as draws.
-DECLARE_UNIFORM_UINT(colorClearValue)
-// Only used if clears are implemented as draws.
-DECLARE_UNIFORM_UINT(coverageClearValue)
-// drawBounds, or renderTargetBounds if there is a clear. (LTRB.)
-DECLARE_UNIFORM_INT4(renderTargetUpdateBounds)
-// 1 / [atlasWidth, atlasHeight]
-DECLARE_UNIFORM_FLOAT2(atlasTextureInverseSize)
-// 2 / atlasContentBounds
-DECLARE_UNIFORM_FLOAT2(atlasContentInverseViewport)
-DECLARE_UNIFORM_UINT(coverageBufferPrefix)
-// GLSL doesn't appear to provide a lightweight, region-local barrier for memory
-// ordering outside of memoryBarrier*(), which have severe consequences for
-// tiling. When we are already relying on other API level barriers and only need
-// to guard against instruction reordering, we can multiply by a tiny epsilon
-// instead, and introduce artifical dependencies that enforce ordering but don't
-// actually have an effect on the final outcome.
-DECLARE_UNIFORM_FLOAT(epsilonForPseudoMemoryBarrier)
-// Spacing between adjacent path IDs (1 if IEEE compliant).
-DECLARE_UNIFORM_UINT(pathIDGranularity)
-DECLARE_UNIFORM_FLOAT(vertexDiscardValue)
-DECLARE_UNIFORM_FLOAT(mipMapLODBias)
-DECLARE_UNIFORM_UINT(maxPathId)
-DECLARE_UNIFORM_FLOAT(ditherScale)
-DECLARE_UNIFORM_FLOAT(ditherBias)
-// Amount by which to multiply a computed dither value when storing as RGB10 (as
-// opposed to writing it out to the framebuffer).
-DECLARE_UNIFORM_FLOAT(ditherConversionToRGB10)
-// Debugging.
-DECLARE_UNIFORM_UINT(wireframeEnabled)
-UNIFORM_BLOCK_END(uniforms)
+m6(n3,cd)J2(Ub)J2(dd)J2(Xe)J2(Ye)d3(q5)d3(tg)d3(Je)d3(Ke)bd(U7)r7(qg)r7(ed)d3(W1)J2(ug)d3(Y5)J2(P2)J2(fd)d3(Ee)J2(y3)J2(z3)J2(gd)d3(ng)v7(k)
 )===";
 } // namespace glsl
 } // namespace gpu

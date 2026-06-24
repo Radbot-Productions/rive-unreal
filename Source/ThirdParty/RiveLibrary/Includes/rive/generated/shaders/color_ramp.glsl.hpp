@@ -5,112 +5,31 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char color_ramp[] = R"===(/*
- * Copyright 2022 Rive
- */
-
-// This shader draws horizontal color ramps into a gradient texture, which will
-// later be sampled by the renderer for drawing gradients.
-
-#ifdef EXPORTED_VERTEX
-ATTR_BLOCK_BEGIN(Attrs)
-#ifdef SPLIT_UINT4_ATTRIBUTES
-ATTR(0, uint, EXPORTED_a_spanX);
-ATTR(1, uint, EXPORTED_a_yWithFlags);
-ATTR(2, uint, EXPORTED_a_color0);
-ATTR(3, uint, EXPORTED_a_color1);
+const char color_ramp[] = R"===(#ifdef CB
+A1(a0)
+#ifdef O9
+p0(0,uint,HD);p0(1,uint,ID);p0(2,uint,JD);p0(3,uint,KD);
 #else
-ATTR(0, uint4, EXPORTED_a_span); // [spanX, y, color0, color1]
+p0(0,Q,CC);
 #endif
-ATTR_BLOCK_END
+B1
 #endif
-
-VARYING_BLOCK_BEGIN
-NO_PERSPECTIVE VARYING(0, half4, v_rampColor);
-VARYING_BLOCK_END
-
-#ifdef EXPORTED_VERTEX
-VERTEX_TEXTURE_BLOCK_BEGIN
-VERTEX_TEXTURE_BLOCK_END
-
-VERTEX_STORAGE_BUFFER_BLOCK_BEGIN
-VERTEX_STORAGE_BUFFER_BLOCK_END
-
-half4 unpackColorInt(uint color)
-{
-    return cast_uint4_to_half4(
-               (uint4(color, color, color, color) >> uint4(16, 8, 0, 24)) &
-               0xffu) /
-           255.;
-}
-
-VERTEX_MAIN(EXPORTED_colorRampVertexMain, Attrs, attrs, _vertexID, _instanceID)
-{
-#ifdef SPLIT_UINT4_ATTRIBUTES
-    ATTR_UNPACK(_instanceID, attrs, EXPORTED_a_spanX, uint);
-    ATTR_UNPACK(_instanceID, attrs, EXPORTED_a_yWithFlags, uint);
-    ATTR_UNPACK(_instanceID, attrs, EXPORTED_a_color0, uint);
-    ATTR_UNPACK(_instanceID, attrs, EXPORTED_a_color1, uint);
-    uint4 EXPORTED_a_span = uint4(EXPORTED_a_spanX, EXPORTED_a_yWithFlags, EXPORTED_a_color0, EXPORTED_a_color1);
+h2 J0 c0(0,i,R6);a2
+#ifdef CB
+R3 S3 A4 B4 i Ve(uint j){return Tb((Q(j,j,j,j)>>Q(16,8,0,24))&0xffu)/255.;}C1(XE,a0,G,v,T){
+#ifdef O9
+q0(T,G,HD,uint);q0(T,G,ID,uint);q0(T,G,JD,uint);q0(T,G,KD,uint);Q CC=Q(HD,ID,JD,KD);
 #else
-    ATTR_UNPACK(_instanceID, attrs, EXPORTED_a_span, uint4);
+q0(T,G,CC,Q);
 #endif
-    VARYING_INIT(v_rampColor, half4);
-
-    int columnWithinSpan = _vertexID >> 1;
-    float x =
-        float(columnWithinSpan <= 1 ? EXPORTED_a_span.x & 0xffffu : EXPORTED_a_span.x >> 16) /
-        65536.;
-    float offsetY = (_vertexID & 1) == 0 ? .0 : 1.;
-    if (uniforms.gradInverseViewportY < .0)
-    {
-        // Swap the top and bottom vertices to make sure we always emit
-        // clockwise triangles. vertices.
-        offsetY = 1. - offsetY;
-    }
-    uint yWithFlags = EXPORTED_a_span.y;
-    float y = float(yWithFlags & ~GRAD_SPAN_FLAGS_MASK) + offsetY;
-    if ((yWithFlags & GRAD_SPAN_FLAG_LEFT_BORDER) != 0u &&
-        columnWithinSpan == 0)
-    {
-        if ((yWithFlags & GRAD_SPAN_FLAG_COMPLEX_BORDER) != 0u)
-            x = .0; // Borders of complex gradients go to the far edge.
-        else
-            // Simple gradients are empty with 1px borders on either side.
-            x -= GRAD_TEXTURE_INVERSE_WIDTH;
-    }
-    if ((yWithFlags & GRAD_SPAN_FLAG_RIGHT_BORDER) != 0u &&
-        columnWithinSpan == 3)
-    {
-        if ((yWithFlags & GRAD_SPAN_FLAG_COMPLEX_BORDER) != 0u)
-            x = 1.; // Borders of complex gradients go to the far edge.
-        else
-            // Simple gradients are empty with 1px borders on either side.
-            x += GRAD_TEXTURE_INVERSE_WIDTH;
-    }
-    v_rampColor = unpackColorInt(columnWithinSpan <= 1 ? EXPORTED_a_span.z : EXPORTED_a_span.w);
-
-    float4 pos = pixel_coord_to_clip_coord(float2(x, y),
-                                           2.,
-                                           uniforms.gradInverseViewportY);
-#ifdef EXPORTED_POST_INVERT_Y
-    pos.y = -pos.y;
+Y(R6,i);int n8=v>>1;float x=float(n8<=1?CC.x&0xffffu:CC.x>>16)/65536.;float P9=(v&1)==0?.0:1.;if(k.Ub<.0){P9=1.-P9;}uint S6=CC.y;float y=float(S6&~We)+P9;if((S6&Vb)!=0u&&n8==0){if((S6&Q9)!=0u)x=.0;else x-=Wb;}if((S6&Xb)!=0u&&n8==3){if((S6&Q9)!=0u)x=1.;else x+=Wb;}R6=Ve(n8<=1?CC.z:CC.w);g N=o8(c(x,y),2.,k.Ub);
+#ifdef JC
+N.y=-N.y;
 #endif
-
-    VARYING_PACK(v_rampColor);
-    EMIT_VERTEX(pos);
-}
+k0(R6);D1(N);}
 #endif
-
-#ifdef EXPORTED_FRAGMENT
-FRAG_TEXTURE_BLOCK_BEGIN
-FRAG_TEXTURE_BLOCK_END
-
-FRAG_DATA_MAIN(half4, EXPORTED_colorRampFragmentMain)
-{
-    VARYING_UNPACK(v_rampColor, half4);
-    EMIT_FRAG_DATA(v_rampColor);
-}
+#ifdef FB
+B3 C3 Y2(i,YE){B(R6,i);G2(R6);}
 #endif
 )===";
 } // namespace glsl

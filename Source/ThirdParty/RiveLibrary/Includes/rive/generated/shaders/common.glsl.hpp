@@ -5,469 +5,77 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char common[] = R"===(/*
- * Copyright 2022 Rive
- */
-
-// Common definitions and functions shared by multiple shaders.
-
-#define PI  3.14159265359
-#define _2PI  6.28318530718
-#define PI_OVER_2  1.57079632679
-#define ONE_OVER_SQRT_2  0.70710678118 // 1/sqrt(2)
-
-#ifndef EXPORTED_RENDER_MODE_MSAA
-#define AA_RADIUS  float(.5)
+const char common[] = R"===(#define A3 3.14159265359
+#define p8 6.28318530718
+#define T6 1.57079632679
+#ifndef BB
+#define l4 float(.5)
 #else
-#define AA_RADIUS  float(.0)
+#define l4 float(.0)
 #endif
-
-// Defined as a macro because 'uniforms' isn't always available at global scope.
-#define RENDER_TARGET_COORD_TO_CLIP_COORD(COORD)                                \
-    pixel_coord_to_clip_coord(COORD,                                           \
-                              uniforms.renderTargetInverseViewportX,           \
-                              uniforms.renderTargetInverseViewportY)
-
-#ifdef EXPORTED_TESS_TEXTURE_FLOATING_POINT
-#define TEXTURE_TESSDATA4(SET, IDX, NAME)  TEXTURE_RGBA32F(SET, IDX, NAME)
-#define TESSDATA4  float4
-#define FLOAT_AS_TESSDATA(X)  X
-#define TESSDATA_AS_FLOAT(X)  X
-#define UINT_AS_TESSDATA(X)  uintBitsToFloat(X)
-#define TESSDATA_AS_UINT(X)  floatBitsToUint(X)
+#define K3(l) o8(l,k.Xe,k.Ye)
+#ifdef ZE
+#define Yb(M,f,a) e5(M,f,a)
+#define C4 g
+#define R9(q) q
+#define U5(q) q
+#define S9(q) uintBitsToFloat(q)
+#define f5(q) floatBitsToUint(q)
 #else
-#define TEXTURE_TESSDATA4(SET, IDX, NAME)  TEXTURE_RGBA32UI(SET, IDX, NAME)
-#define TESSDATA4  uint4
-#define FLOAT_AS_TESSDATA(X)  floatBitsToUint(X)
-#define TESSDATA_AS_FLOAT(X)  uintBitsToFloat(X)
-#define UINT_AS_TESSDATA(X)  X
-#define TESSDATA_AS_UINT(X)  X
+#define Yb(M,f,a) D4(M,f,a)
+#define C4 Q
+#define R9(q) floatBitsToUint(q)
+#define U5(q) uintBitsToFloat(q)
+#define S9(q) q
+#define f5(q) q
 #endif
-
-// Gathers a 4xN matrix of texels, in the same order as the textureGather() API.
-// clang-format off
-#define TEXTURE_GATHER_MATRIX(NAME, COORD, COMPONENTS)                          \
-    TEXEL_FETCH(NAME, int2(COORD) + int2(-1, 0))COMPONENTS,                    \
-        TEXEL_FETCH(NAME, int2(COORD) + int2(0, 0))COMPONENTS,                 \
-        TEXEL_FETCH(NAME, int2(COORD) + int2(0, -1))COMPONENTS,                \
-        TEXEL_FETCH(NAME, int2(COORD) + int2(-1, -1))COMPONENTS
-// clang-format on
-
-// This is a macro because we can't (at least for now) forward texture refs to a
-// function in a way that works in all the languages we support.
-// This is a macro because we can't (at least for now) forward texture refs to a
-// function in a way that works in all the languages we support.
-#define FEATHER(X)                                                              \
-    TEXTURE_SAMPLE_LOD_1D_ARRAY(EXPORTED_featherTexture,                               \
-                                featherSampler,                                \
-                                X,                                             \
-                                FEATHER_FUNCTION_ARRAY_INDEX,                  \
-                                float(FEATHER_FUNCTION_ARRAY_INDEX),           \
-                                .0)                                            \
-        .x
-#define INVERSE_FEATHER(X)                                                      \
-    TEXTURE_SAMPLE_LOD_1D_ARRAY(EXPORTED_featherTexture,                               \
-                                featherSampler,                                \
-                                X,                                             \
-                                FEATHER_INVERSE_FUNCTION_ARRAY_INDEX,          \
-                                float(FEATHER_INVERSE_FUNCTION_ARRAY_INDEX),   \
-                                .0)                                            \
-        .x
-
-#ifdef GLSL
-// GLSL has different semantics around precision. Normalize type conversions
-// across languages with "cast_*_to_*()" methods.
-INLINE half cast_float_to_half(float x) { return x; }
-INLINE half cast_uint_to_half(uint x) { return float(x); }
-INLINE half cast_ushort_to_half(ushort x) { return float(x); }
-INLINE half cast_int_to_half(int x) { return float(x); }
-INLINE half4 cast_float4_to_half4(float4 xyzw) { return xyzw; }
-INLINE half2 cast_float2_to_half2(float2 xy) { return xy; }
-INLINE half4 cast_uint4_to_half4(uint4 xyzw) { return vec4(xyzw); }
-INLINE ushort cast_half_to_ushort(half x) { return uint(x); }
-INLINE ushort cast_uint_to_ushort(uint x) { return x; }
+#define Ze(a,l,q8) v1(a,U(l)+U(-1,0))q8,v1(a,U(l)+U(0,0))q8,v1(a,U(l)+U(0,-1))q8,v1(a,U(l)+U(-1,-1))q8
+#define g5(q) U6(QC,T9,q,Zb,float(Zb),.0).x
+#define bc(q) U6(QC,T9,q,ac,float(ac),.0).x
+#ifdef cc
+e d m4(float x){return x;}e d V5(uint x){return float(x);}e d af(X x){return float(x);}e d U9(int x){return float(x);}e i Y4(g xyzw){return xyzw;}e D R7(c xy){return xy;}e i Tb(Q xyzw){return vec4(xyzw);}e X W5(d x){return uint(x);}e X i2(uint x){return x;}
 #else
-INLINE half cast_float_to_half(float x) { return (half)x; }
-INLINE half cast_uint_to_half(uint x) { return (half)x; }
-INLINE half cast_ushort_to_half(ushort x) { return (half)x; }
-INLINE half cast_int_to_half(int x) { return (half)x; }
-INLINE half4 cast_float4_to_half4(float4 xyzw) { return (half4)xyzw; }
-INLINE half2 cast_float2_to_half2(float2 xy) { return (half2)xy; }
-INLINE half4 cast_uint4_to_half4(uint4 xyzw) { return (half4)xyzw; }
-INLINE ushort cast_half_to_ushort(half x) { return (ushort)x; }
-INLINE ushort cast_uint_to_ushort(uint x) { return (ushort)x; }
+e d m4(float x){return(d)x;}e d V5(uint x){return(d)x;}e d af(X x){return(d)x;}e d U9(int x){return(d)x;}e i Y4(g xyzw){return(i)xyzw;}e D R7(c xy){return(D)xy;}e i Tb(Q xyzw){return(i)xyzw;}e X W5(d x){return(X)x;}e X i2(uint x){return(X)x;}
 #endif
-
-INLINE half make_half(half x) { return x; }
-
-INLINE half2 make_half2(half2 xy) { return xy; }
-
-INLINE half2 make_half2(half x, half y)
-{
-    half2 ret;
-    ret.x = x, ret.y = y;
-    return ret;
-}
-
-INLINE half2 make_half2(half x)
-{
-    half2 ret;
-    ret.x = x, ret.y = x;
-    return ret;
-}
-
-INLINE float2 make_float2(float x) { return float2(x, x); }
-
-INLINE half3 make_half3(half x, half y, half z)
-{
-    half3 ret;
-    ret.x = x, ret.y = y, ret.z = z;
-    return ret;
-}
-
-INLINE half3 make_half3(half x)
-{
-    half3 ret;
-    ret.x = x, ret.y = x, ret.z = x;
-    return ret;
-}
-
-INLINE half4 make_half4(half x, half y, half z, half w)
-{
-    half4 ret;
-    ret.x = x, ret.y = y, ret.z = z, ret.w = w;
-    return ret;
-}
-
-INLINE half4 make_half4(half3 xyz, half w)
-{
-    half4 ret;
-    ret.xyz = xyz;
-    ret.w = w;
-    return ret;
-}
-
-INLINE half4 make_half4(half x)
-{
-    half4 ret;
-    ret.x = x, ret.y = x, ret.z = x, ret.w = x;
-    return ret;
-}
-
-INLINE half4 make_half4(half4 x) { return x; }
-
-INLINE bool2 make_bool2(bool b) { return bool2(b, b); }
-
-INLINE half3x3 make_half3x3(half3 a, half3 b, half3 c)
-{
-    half3x3 ret;
-    ret[0] = a;
-    ret[1] = b;
-    ret[2] = c;
-    return ret;
-}
-
-INLINE half2x3 make_half2x3(half3 a, half3 b)
-{
-    half2x3 ret;
-    ret[0] = a;
-    ret[1] = b;
-    return ret;
-}
-
-INLINE half4x4 make_half4x4(half4 a, half4 b, half4 c, half4 d)
-{
-    half4x4 ret;
-    ret[0] = a;
-    ret[1] = b;
-    ret[2] = c;
-    ret[3] = d;
-    return ret;
-}
-
-INLINE float2x2 make_float2x2(float4 x) { return float2x2(x.xy, x.zw); }
-
-INLINE uint make_uint(ushort x) { return x; }
-
-INLINE float2 unchecked_mix(float2 a, float2 b, float t)
-{
-    return (b - a) * t + a;
-}
-
-INLINE half id_bits_to_f16(uint idBits, uint pathIDGranularity)
-{
-    return idBits == 0u
-               ? .0
-               : unpackHalf2x16((idBits + MAX_DENORM_F16) * pathIDGranularity)
-                     .x;
-}
-
-INLINE float atan2(float2 v)
-{
-    v = normalize(v);
-    float theta = acos(clamp(v.x, -1., 1.));
-    return v.y >= .0 ? theta : -theta;
-}
-
-INLINE half4 premultiply(half4 color)
-{
-    return make_half4(color.xyz * color.w, color.w);
-}
-
-INLINE half3 unmultiply_rgb(half4 premul)
-{
-    // We *could* return preciesly 1 when premul.rgb == premul.a, but we can
-    // also be approximate here. The blend modes that depend on this exact level
-    // of precision (colordodge and colorburn) account for it with dstPremul.
-    return premul.xyz * (premul.w != .0 ? 1. / premul.w : .0);
-}
-
-INLINE half min_component(half2 min2) { return min(min2.x, min2.y); }
-
-INLINE half min_component(half3 min3)
-{
-    return min(min_component(min3.xy), min3.z);
-}
-
-INLINE half min_component(half4 min4)
-{
-    half2 min2 = min(min4.xy, min4.zw);
-    half min1 = min(min2.x, min2.y);
-    return min1;
-}
-
-INLINE half max_component(half2 max2) { return max(max2.x, max2.y); }
-
-INLINE half max_component(half3 max3)
-{
-    return max(max_component(max3.xy), max3.z);
-}
-
-INLINE half max_component(half4 max4)
-{
-    half2 max2 = max(max4.xy, max4.zw);
-    half max1 = max(max2.x, max2.y);
-    return max1;
-}
-
-INLINE float manhattan_width(float2 x) { return abs(x.x) + abs(x.y); }
-
-// ARM Mali has experienced multiple errors for us when calling clamp(), in both
-// GL and Vulkan.
-INLINE half safe_clamp_for_mali(half x, half lo, half hi)
-{
-#if defined(EXPORTED_GL_RENDERER_MALI) || defined(EXPORTED_VULKAN_VENDOR_ID)
-#ifdef EXPORTED_VULKAN_VENDOR_ID
-    if (EXPORTED_VULKAN_VENDOR_ID == VULKAN_VENDOR_ARM)
+e d G0(d x){return x;}e D A2(D xy){return xy;}e D A2(d x,d y){D L;L.x=x,L.y=y;return L;}e D A2(d x){D L;L.x=x,L.y=x;return L;}e c J6(float x){return c(x,x);}e r T0(d x,d y,d z){r L;L.x=x,L.y=y,L.z=z;return L;}e r T0(d x){r L;L.x=x,L.y=x,L.z=x;return L;}e i B0(d x,d y,d z,d w){i L;L.x=x,L.y=y,L.z=z,L.w=w;return L;}e i B0(r xyz,d w){i L;L.xyz=xyz;L.w=w;return L;}e i B0(d x){i L;L.x=x,L.y=x,L.z=x,L.w=x;return L;}e i B0(i x){return x;}e E4 bf(bool b){return E4(b,b);}e V6 Ch(r o,r b,r I1){V6 L;L[0]=o;L[1]=b;L[2]=I1;return L;}e W6 Dh(r o,r b){W6 L;L[0]=o;L[1]=b;return L;}e h5 Eh(i o,i b,i I1,i cf){h5 L;L[0]=o;L[1]=b;L[2]=I1;L[3]=cf;return L;}e Z j2(g x){return Z(x.xy,x.zw);}e uint Gb(X x){return x;}e c X5(c o,c b,float t){return(b-o)*t+o;}e d r8(uint dc,uint Y5){return dc==0u?.0:unpackHalf2x16((dc+df)*Y5).x;}e float ec(c e2){e2=normalize(e2);float h1=acos(clamp(e2.x,-1.,1.));return e2.y>=.0?h1:-h1;}e i Fh(i j){return B0(j.xyz*j.w,j.w);}e r B6(i V9){return V9.xyz*(V9.w!=.0?1./V9.w:.0);}e d g3(D X6){return min(X6.x,X6.y);}e d g3(r fc){return min(g3(fc.xy),fc.z);}e d g3(i gc){D X6=min(gc.xy,gc.zw);d ef=min(X6.x,X6.y);return ef;}e d I5(D Y6){return max(Y6.x,Y6.y);}e d I5(r hc){return max(I5(hc.xy),hc.z);}e d I5(i ic){D Y6=max(ic.xy,ic.zw);d ff=max(Y6.x,Y6.y);return ff;}e float w9(c x){return abs(x.x)+abs(x.y);}e d W9(d x,d X9,d Y9){
+#if defined(AF)||defined(WC)
+#ifdef WC
+if(WC)
 #endif
-    {
-        if (x < hi)
-            if (x > lo)
-                return x;
-            else
-                return lo;
-        else
-            return hi;
-    }
-#endif // @GL_RENDERER_MALI || @VULKAN_VENDOR_ID
-    return clamp(x, lo, hi);
-}
-
-INLINE half interleaved_gradient_noise(float2 fragCoord, half scale, half bias)
-{
-    half v1 = fract(0.06711056 * fragCoord.x + 0.00583715 * fragCoord.y);
-    half v2 = fract(52.9829189 * v1);
-    return (v2 * scale) + bias;
-}
-
+{if(x<Y9)if(x>X9)return x;else return X9;else return Y9;}
+#endif
+return clamp(x,X9,Y9);}e d jc(c K0,d B2,d m3){d gf=fract(0.06711056*K0.x+0.00583715*K0.y);d hf=fract(52.9829189*gf);return(hf*B2)+m3;}
 #if 0
-// Bayer 4x4 and Bayer 2x2 variants included for reference,
-// but not currently used.
-INLINE half bayer4x4f(float2 fragCoord, float scale, float bias)
-{
-    int x = int(fragCoord.x);
-    int y = int(fragCoord.y);
-
-    int xxory = (x ^ y);
-    int b = (y >> 1) & 1;
-    b |= (xxory & 2);
-    b |= (y & 1) << 2;
-    b |= (xxory & 1) << 3;
-    float fb = float(b);
-    half hb = cast_float_to_half(fb) / 16.0;
-    return (hb * scale) + bias;
-}
-
-INLINE half bayer2x2f(float2 fragCoord, float scale, float bias)
-{
-    fragCoord.y *= 0.5;
-    fragCoord.x = fract(fragCoord.x * 0.5 + fragCoord.y);
-    fragCoord.y = fract(fragCoord.y);
-    float n = (fragCoord.y * 0.5 + fragCoord.x);
-    return (n * scale) + bias;
-}
+e d Gh(c K0,float B2,float m3){int x=int(K0.x);int y=int(K0.y);int kc=(x^y);int b=(y>>1)&1;b|=(kc&2);b|=(y&1)<<2;b|=(kc&1)<<3;float jf=float(b);d kf=m4(jf)/16.0;return(kf*B2)+m3;}e d Hh(c K0,float B2,float m3){K0.y*=0.5;K0.x=fract(K0.x*0.5+K0.y);K0.y=fract(K0.y);float M3=(K0.y*0.5+K0.x);return(M3*B2)+m3;}
 #endif
-
-#ifdef EXPORTED_ENABLE_DITHER
-INLINE half get_dither(float2 fragCoord, half scale, half bias)
-{
-    return EXPORTED_ENABLE_DITHER ? interleaved_gradient_noise(fragCoord, scale, bias)
-                          : .0;
-}
-
-INLINE half3 add_dither(half3 color, float2 fragCoord, half scale, half bias)
-{
-    return EXPORTED_ENABLE_DITHER
-               ? (interleaved_gradient_noise(fragCoord, scale, bias) + color)
-               : color;
-}
-
+#ifdef JB
+e d Z9(c K0,d B2,d m3){return JB?jc(K0,B2,m3):.0;}e r Q3(r j,c K0,d B2,d m3){return JB?(jc(K0,B2,m3)+j):j;}
 #else
-
-INLINE half get_dither(float2 fragCoord, float scale, float bias) { return 0.; }
-
-INLINE half3 add_dither(half3 color, float2 fragCoord, half scale, half bias)
-{
-    return color;
+e d Z9(c K0,float B2,float m3){return 0.;}e r Q3(r j,c K0,d B2,d m3){return j;}
+#endif
+#ifdef CB
+e g o8(c lc,float lf,float mc){return g(lc.x*lf-1.,lc.y*mc-sign(mc),0.,1.);}
+#ifndef BB
+e g T7(Z k2,c D2,c aa){c ba=abs(k2[0])+abs(k2[1]);if(ba.x!=.0&&ba.y!=.0){c H=1./ba;c i5=Z0(k2,aa)+D2;const float mf=.5;return g(i5,-i5)*H.xyxy+H.xyxy+mf;}else{return D2.xyxy;}}
+#else
+e float ca(uint Z6){return 1.-float(Z6)*(2./32768.);}
+#ifdef AB
+e void nc(Z k2,c D2,c aa a7){
+#ifndef EE
+if(any(notEqual(g(k2),g(.0,.0,.0,.0)))){c i5=Z0(k2,aa)+D2.xy;gl_ClipDistance[0]=i5.x+1.;gl_ClipDistance[1]=i5.y+1.;gl_ClipDistance[2]=1.-i5.x;gl_ClipDistance[3]=1.-i5.y;}else{gl_ClipDistance[0]=gl_ClipDistance[1]=gl_ClipDistance[2]=gl_ClipDistance[3]=D2.x-.5;}
+#endif
 }
 #endif
-
-#ifdef EXPORTED_VERTEX
-
-INLINE float4 pixel_coord_to_clip_coord(float2 pixelCoord,
-                                        float inverseViewportX,
-                                        float inverseViewportY)
-{
-    return float4(pixelCoord.x * inverseViewportX - 1.,
-                  pixelCoord.y * inverseViewportY - sign(inverseViewportY),
-                  0.,
-                  1.);
-}
-
-#ifndef EXPORTED_RENDER_MODE_MSAA
-// Calculates the Manhattan distance in pixels from the given pixelPosition, to
-// the point at each edge of the clipRect where coverage = 0.
-//
-// clipRectInverseMatrix transforms from pixel coordinates to a space where the
-// clipRect is the normalized rectangle: [-1, -1, 1, 1].
-INLINE float4 find_clip_rect_coverage_distances(float2x2 clipRectInverseMatrix,
-                                                float2 clipRectInverseTranslate,
-                                                float2 pixelPosition)
-{
-    float2 clipRectAAWidth =
-        abs(clipRectInverseMatrix[0]) + abs(clipRectInverseMatrix[1]);
-    if (clipRectAAWidth.x != .0 && clipRectAAWidth.y != .0)
-    {
-        float2 r = 1. / clipRectAAWidth;
-        float2 clipRectCoord = MUL(clipRectInverseMatrix, pixelPosition) +
-                               clipRectInverseTranslate;
-        // When the center of a pixel falls exactly on an edge, coverage should
-        // be .5.
-        const float coverageWhenDistanceIsZero = .5;
-        return float4(clipRectCoord, -clipRectCoord) * r.xyxy + r.xyxy +
-               coverageWhenDistanceIsZero;
-    }
-    else
-    {
-        // The caller gave us a singular clipRectInverseMatrix. This is a
-        // special case where we are expected to use tx and ty as uniform
-        // coverage.
-        return clipRectInverseTranslate.xyxy;
-    }
-}
-
-#else // !@RENDER_MODE_MSAA => @RENDER_MODE_MSAA
-
-INLINE float normalize_z_index(uint zIndex)
-{
-    return 1. - float(zIndex) * (2. / 32768.);
-}
-
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-INLINE void set_clip_rect_plane_distances(float2x2 clipRectInverseMatrix,
-                                          float2 clipRectInverseTranslate,
-                                          float2 pixelPosition
-                                              CLIP_CONTEXT_FORWARD)
-{
-// MSAA uses gl_ClipDistance when ENABLE_CLIP_RECT is set, but since SPIRV uses
-// specialization constants (as opposed to compile-time flags), it means that
-// the usage of them is in the compiled shader even if that codepath is not
-// going to be taken, which ends up as a validation failure on systems that do
-// not support that extension. In those cases, we compile separate SPIRV
-// binaries with gl_ClipDistance explicitly disabled.
-#ifndef EXPORTED_DISABLE_CLIP_DISTANCE_FOR_UBERSHADERS
-    if (any(notEqual(float4(clipRectInverseMatrix), float4(.0, .0, .0, .0))))
-    {
-        float2 clipRectCoord = MUL(clipRectInverseMatrix, pixelPosition) +
-                               clipRectInverseTranslate.xy;
-        gl_ClipDistance[0] = clipRectCoord.x + 1.;
-        gl_ClipDistance[1] = clipRectCoord.y + 1.;
-        gl_ClipDistance[2] = 1. - clipRectCoord.x;
-        gl_ClipDistance[3] = 1. - clipRectCoord.y;
-    }
-    else
-    {
-        // "clipRectInverseMatrix == 0" is a special case:
-        //     "clipRectInverseTranslate.x == 1" => all in.
-        //     "clipRectInverseTranslate.x == 0" => all out.
-        gl_ClipDistance[0] = gl_ClipDistance[1] = gl_ClipDistance[2] =
-            gl_ClipDistance[3] = clipRectInverseTranslate.x - .5;
-    }
-#endif // !@DISABLE_CLIP_DISTANCE_FOR_UBERSHADERS
-}
-#endif // ENABLE_CLIP_RECT
-
-#endif // @RENDER_MODE_MSAA
-#endif // VERTEX
-
-#ifdef EXPORTED_FRAGMENT
-#ifdef EXPORTED_NEEDS_GAMMA_CORRECTION
-INLINE half gamma_to_linear(half color)
-{
-    return (color <= 0.04045) ? color / 12.92
-                              : pow(abs((color + 0.055) / 1.055), 2.4);
-}
-
-INLINE half3 gamma_to_linear(half3 color)
-{
-    return make_half3(gamma_to_linear(color.x),
-                      gamma_to_linear(color.y),
-                      gamma_to_linear(color.z));
-}
-
-INLINE half4 gamma_to_linear(half4 color)
-{
-    return make_half4(gamma_to_linear(color.xyz), color.w);
-}
-#endif // NEEDS_GAMMA_CORRECTION
-#endif // FRAGMENT
-
-// The Qualcomm compiler can't handle line breaks in #ifs.
-// clang-format off
-#if defined(EXPORTED_FRAGMENT) && defined(EXPORTED_RENDER_MODE_MSAA) && !defined(EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT)
-// clang-format on
-INLINE half4 dst_color_fetch(half4x4 dstSamples, int sampleMask)
-{
-    if (sampleMask == 0xf)
-    {
-        // Average together all samples for this fragment.
-        return (dstSamples[0] + dstSamples[1] + dstSamples[2] + dstSamples[3]) *
-               .25;
-    }
-    else
-    {
-        // Average together only the samples that are inside the sample mask.
-        half4 mask = float4(notEqual(sampleMask & int4(1, 2, 4, 8), int4(0)));
-        half4 ret = MUL(dstSamples, mask);
-        // Since the sample mask can only have 4 bits, counting them is faster
-        // this way on Galaxy S24 than calling bitCount().
-        int numSamples = (sampleMask & 5) + ((sampleMask >> 1) & 5);
-        numSamples = (numSamples & 3) + (numSamples >> 2);
-        ret *= 1. / float(numSamples);
-        return ret;
-    }
-}
-#endif // @FRAGMENT && @RENDER_MODE_MSAA && !@FIXED_FUNCTION_COLOR_OUTPUT
+#endif
+#endif
+#ifdef FB
+#ifdef UB
+e d k3(d j){return(j<=0.04045)?j/12.92:pow(abs((j+0.055)/1.055),2.4);}e r k3(r j){return T0(k3(j.x),k3(j.y),k3(j.z));}e i k3(i j){return B0(k3(j.xyz),j.w);}
+#endif
+#endif
+#if defined(FB)&&defined(BB)&&!defined(K)
+e i oc(h5 c7,int v8){if(v8==0xf){return(c7[0]+c7[1]+c7[2]+c7[3])*.25;}else{i nf=g(notEqual(v8&Z5(1,2,4,8),Z5(0)));i L=Z0(c7,nf);int w8=(v8&5)+((v8>>1)&5);w8=(w8&3)+(w8>>2);L*=1./float(w8);return L;}}
+#endif
 )===";
 } // namespace glsl
 } // namespace gpu

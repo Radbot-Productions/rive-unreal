@@ -21,6 +21,8 @@
 #include "rive/animation/entry_state.hpp"
 #include "rive/animation/exit_state.hpp"
 #include "rive/animation/focus_action.hpp"
+#include "rive/animation/focus_action_target.hpp"
+#include "rive/animation/focus_action_traversal.hpp"
 #include "rive/animation/interpolating_keyframe.hpp"
 #include "rive/animation/keyed_object.hpp"
 #include "rive/animation/keyed_property.hpp"
@@ -44,7 +46,9 @@
 #include "rive/animation/listener_trigger_change.hpp"
 #include "rive/animation/listener_types/listener_input_type.hpp"
 #include "rive/animation/listener_types/listener_input_type_event.hpp"
+#include "rive/animation/listener_types/listener_input_type_gamepad.hpp"
 #include "rive/animation/listener_types/listener_input_type_keyboard.hpp"
+#include "rive/animation/listener_types/listener_input_type_semantic.hpp"
 #include "rive/animation/listener_types/listener_input_type_text.hpp"
 #include "rive/animation/listener_types/listener_input_type_viewmodel.hpp"
 #include "rive/animation/listener_viewmodel_change.hpp"
@@ -111,6 +115,8 @@
 #include "rive/assets/image_asset.hpp"
 #include "rive/assets/manifest_asset.hpp"
 #include "rive/assets/script_asset.hpp"
+#include "rive/assets/shader_asset.hpp"
+#include "rive/assets/text_asset.hpp"
 #include "rive/audio_event.hpp"
 #include "rive/backboard.hpp"
 #include "rive/bones/bone.hpp"
@@ -201,7 +207,9 @@
 #include "rive/event.hpp"
 #include "rive/focus_data.hpp"
 #include "rive/foreground_layout_drawable.hpp"
+#include "rive/inputs/gamepad_input.hpp"
 #include "rive/inputs/keyboard_input.hpp"
+#include "rive/inputs/semantic_input.hpp"
 #include "rive/inputs/user_input.hpp"
 #include "rive/joystick.hpp"
 #include "rive/layout/artboard_component_list_override.hpp"
@@ -228,8 +236,10 @@
 #include "rive/script_input_viewmodel_property.hpp"
 #include "rive/scripted/scripted_data_converter.hpp"
 #include "rive/scripted/scripted_drawable.hpp"
+#include "rive/scripted/scripted_interpolator.hpp"
 #include "rive/scripted/scripted_layout.hpp"
 #include "rive/scripted/scripted_path_effect.hpp"
+#include "rive/semantic/semantic_data.hpp"
 #include "rive/shapes/clipping_shape.hpp"
 #include "rive/shapes/contour_mesh_vertex.hpp"
 #include "rive/shapes/cubic_asymmetric_vertex.hpp"
@@ -457,6 +467,8 @@ public:
                 return new ScriptedDrawable();
             case ScriptedDataConverterBase::typeKey:
                 return new ScriptedDataConverter();
+            case ScriptedInterpolatorBase::typeKey:
+                return new ScriptedInterpolator();
             case ScriptedLayoutBase::typeKey:
                 return new ScriptedLayout();
             case ScriptedPathEffectBase::typeKey:
@@ -549,6 +561,8 @@ public:
                 return new KeyFrameString();
             case ListenerNumberChangeBase::typeKey:
                 return new ListenerNumberChange();
+            case FocusActionTargetBase::typeKey:
+                return new FocusActionTarget();
             case CubicEaseInterpolatorBase::typeKey:
                 return new CubicEaseInterpolator();
             case TransitionValueIdComparatorBase::typeKey:
@@ -561,8 +575,8 @@ public:
                 return new KeyFrameDouble();
             case KeyFrameColorBase::typeKey:
                 return new KeyFrameColor();
-            case FocusActionBase::typeKey:
-                return new FocusAction();
+            case FocusActionTraversalBase::typeKey:
+                return new FocusActionTraversal();
             case StateMachineBase::typeKey:
                 return new StateMachine();
             case StateMachineFireEventBase::typeKey:
@@ -593,10 +607,14 @@ public:
                 return new ListenerInputType();
             case ListenerInputTypeEventBase::typeKey:
                 return new ListenerInputTypeEvent();
+            case ListenerInputTypeGamepadBase::typeKey:
+                return new ListenerInputTypeGamepad();
             case ListenerInputTypeKeyboardBase::typeKey:
                 return new ListenerInputTypeKeyboard();
             case ListenerInputTypeTextBase::typeKey:
                 return new ListenerInputTypeText();
+            case ListenerInputTypeSemanticBase::typeKey:
+                return new ListenerInputTypeSemantic();
             case ListenerInputTypeViewModelBase::typeKey:
                 return new ListenerInputTypeViewModel();
             case ExitStateBase::typeKey:
@@ -707,6 +725,8 @@ public:
                 return new Backboard();
             case OpenUrlEventBase::typeKey:
                 return new OpenUrlEvent();
+            case SemanticDataBase::typeKey:
+                return new SemanticData();
             case CustomPropertyStringBase::typeKey:
                 return new CustomPropertyString();
             case ScriptInputStringBase::typeKey:
@@ -855,6 +875,8 @@ public:
                 return new ManifestAsset();
             case ImageAssetBase::typeKey:
                 return new ImageAsset();
+            case ShaderAssetBase::typeKey:
+                return new ShaderAsset();
             case FontAssetBase::typeKey:
                 return new FontAsset();
             case AudioAssetBase::typeKey:
@@ -865,8 +887,12 @@ public:
                 return new AudioEvent();
             case UserInputBase::typeKey:
                 return new UserInput();
+            case GamepadInputBase::typeKey:
+                return new GamepadInput();
             case KeyboardInputBase::typeKey:
                 return new KeyboardInput();
+            case SemanticInputBase::typeKey:
+                return new SemanticInput();
             case ScriptInputArtboardBase::typeKey:
                 return new ScriptInputArtboard();
         }
@@ -1007,6 +1033,9 @@ public:
                 break;
             case ScriptedDataConverterBase::scriptAssetIdPropertyKey:
                 object->as<ScriptedDataConverterBase>()->scriptAssetId(value);
+                break;
+            case ScriptedInterpolatorBase::scriptAssetIdPropertyKey:
+                object->as<ScriptedInterpolatorBase>()->scriptAssetId(value);
                 break;
             case ScriptedPathEffectBase::scriptAssetIdPropertyKey:
                 object->as<ScriptedPathEffectBase>()->scriptAssetId(value);
@@ -1212,6 +1241,9 @@ public:
                 object->as<ArtboardComponentListOverrideBase>()
                     ->instanceHeightScaleType(value);
                 break;
+            case ListenerActionBase::flagsPropertyKey:
+                object->as<ListenerActionBase>()->flags(value);
+                break;
             case ListenerFireEventBase::eventIdPropertyKey:
                 object->as<ListenerFireEventBase>()->eventId(value);
                 break;
@@ -1308,6 +1340,9 @@ public:
             case BlendState1DInputBase::inputIdPropertyKey:
                 object->as<BlendState1DInputBase>()->inputId(value);
                 break;
+            case FocusActionTargetBase::targetIdPropertyKey:
+                object->as<FocusActionTargetBase>()->targetId(value);
+                break;
             case TransitionValueIdComparatorBase::valuePropertyKey:
                 object->as<TransitionValueIdComparatorBase>()->value(value);
                 break;
@@ -1332,8 +1367,8 @@ public:
             case StateTransitionBase::randomWeightPropertyKey:
                 object->as<StateTransitionBase>()->randomWeight(value);
                 break;
-            case FocusActionBase::targetIdPropertyKey:
-                object->as<FocusActionBase>()->targetId(value);
+            case FocusActionTraversalBase::traversalKindPropertyKey:
+                object->as<FocusActionTraversalBase>()->traversalKind(value);
                 break;
             case StateMachineFireEventBase::eventIdPropertyKey:
                 object->as<StateMachineFireEventBase>()->eventId(value);
@@ -1446,6 +1481,18 @@ public:
                 break;
             case OpenUrlEventBase::targetValuePropertyKey:
                 object->as<OpenUrlEventBase>()->targetValue(value);
+                break;
+            case SemanticDataBase::rolePropertyKey:
+                object->as<SemanticDataBase>()->role(value);
+                break;
+            case SemanticDataBase::headingLevelPropertyKey:
+                object->as<SemanticDataBase>()->headingLevel(value);
+                break;
+            case SemanticDataBase::traitFlagsPropertyKey:
+                object->as<SemanticDataBase>()->traitFlags(value);
+                break;
+            case SemanticDataBase::stateFlagsPropertyKey:
+                object->as<SemanticDataBase>()->stateFlags(value);
                 break;
             case BindablePropertyIdBase::propertyValuePropertyKey:
                 object->as<BindablePropertyIdBase>()->propertyValue(value);
@@ -1601,6 +1648,41 @@ public:
             case TextBase::textRunListSourcePropertyKey:
                 object->as<TextBase>()->textRunListSource(value);
                 break;
+            case TextBase::verticalTrimValuePropertyKey:
+                object->as<TextBase>()->verticalTrimValue(value);
+                break;
+            case TextBase::verticalTrimTopValuePropertyKey:
+            {
+                auto* _o = object->as<TextBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->verticalTrimValue();
+                    const uint32_t _fieldMask = static_cast<uint32_t>(255u);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_fieldMask) | ((value << 0) & _fieldMask));
+                    if (_cur != _next)
+                    {
+                        _o->verticalTrimValue(_next);
+                    }
+                }
+                break;
+            }
+            case TextBase::verticalTrimBottomValuePropertyKey:
+            {
+                auto* _o = object->as<TextBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->verticalTrimValue();
+                    const uint32_t _fieldMask = static_cast<uint32_t>(65280u);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_fieldMask) | ((value << 8) & _fieldMask));
+                    if (_cur != _next)
+                    {
+                        _o->verticalTrimValue(_next);
+                    }
+                }
+                break;
+            }
             case TextValueRunBase::styleIdPropertyKey:
                 object->as<TextValueRunBase>()->styleId(value);
                 break;
@@ -1622,8 +1704,24 @@ public:
             case ScriptAssetBase::generatorFunctionRefPropertyKey:
                 object->as<ScriptAssetBase>()->generatorFunctionRef(value);
                 break;
+            case ScriptAssetBase::serializedImplementedMethodsPropertyKey:
+                object->as<ScriptAssetBase>()->serializedImplementedMethods(
+                    value);
+                break;
             case AudioEventBase::assetIdPropertyKey:
                 object->as<AudioEventBase>()->assetId(value);
+                break;
+            case GamepadInputBase::kindPropertyKey:
+                object->as<GamepadInputBase>()->kind(value);
+                break;
+            case GamepadInputBase::mappingPropertyKey:
+                object->as<GamepadInputBase>()->mapping(value);
+                break;
+            case GamepadInputBase::inputIndexPropertyKey:
+                object->as<GamepadInputBase>()->inputIndex(value);
+                break;
+            case GamepadInputBase::buttonPhasePropertyKey:
+                object->as<GamepadInputBase>()->buttonPhase(value);
                 break;
             case KeyboardInputBase::keyTypePropertyKey:
                 object->as<KeyboardInputBase>()->keyType(value);
@@ -1633,6 +1731,9 @@ public:
                 break;
             case KeyboardInputBase::modifiersPropertyKey:
                 object->as<KeyboardInputBase>()->modifiers(value);
+                break;
+            case SemanticInputBase::actionTypePropertyKey:
+                object->as<SemanticInputBase>()->actionType(value);
                 break;
             case ScriptInputArtboardBase::artboardIdPropertyKey:
                 object->as<ScriptInputArtboardBase>()->artboardId(value);
@@ -1679,6 +1780,15 @@ public:
             case OpenUrlEventBase::urlPropertyKey:
                 object->as<OpenUrlEventBase>()->url(value);
                 break;
+            case SemanticDataBase::labelPropertyKey:
+                object->as<SemanticDataBase>()->label(value);
+                break;
+            case SemanticDataBase::valuePropertyKey:
+                object->as<SemanticDataBase>()->value(value);
+                break;
+            case SemanticDataBase::hintPropertyKey:
+                object->as<SemanticDataBase>()->hint(value);
+                break;
             case CustomPropertyStringBase::propertyValuePropertyKey:
                 object->as<CustomPropertyStringBase>()->propertyValue(value);
                 break;
@@ -1703,8 +1813,8 @@ public:
             case FileAssetBase::cdnBaseUrlPropertyKey:
                 object->as<FileAssetBase>()->cdnBaseUrl(value);
                 break;
-            case ScriptAssetBase::folderPathPropertyKey:
-                object->as<ScriptAssetBase>()->folderPath(value);
+            case TextAssetBase::folderPathPropertyKey:
+                object->as<TextAssetBase>()->folderPath(value);
                 break;
         }
     }
@@ -1786,11 +1896,17 @@ public:
             case ScrollConstraintBase::interactivePropertyKey:
                 object->as<ScrollConstraintBase>()->interactive(value);
                 break;
+            case ScrollConstraintBase::scrollActivePropertyKey:
+                object->as<ScrollConstraintBase>()->scrollActive(value);
+                break;
             case ScrollBarConstraintBase::autoSizePropertyKey:
                 object->as<ScrollBarConstraintBase>()->autoSize(value);
                 break;
             case NestedArtboardBase::isPausedPropertyKey:
                 object->as<NestedArtboardBase>()->isPaused(value);
+                break;
+            case NestedArtboardBase::isStatefulPropertyKey:
+                object->as<NestedArtboardBase>()->isStateful(value);
                 break;
             case AxisBase::normalizedPropertyKey:
                 object->as<AxisBase>()->normalized(value);
@@ -1869,9 +1985,363 @@ public:
             case LayoutComponentBase::clipPropertyKey:
                 object->as<LayoutComponentBase>()->clip(value);
                 break;
-            case ArtboardBase::isStatefulPropertyKey:
-                object->as<ArtboardBase>()->isStateful(value);
+            case SemanticDataBase::isExpandablePropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->traitFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 0);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->traitFlags(_next);
+                    }
+                }
                 break;
+            }
+            case SemanticDataBase::isSelectablePropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->traitFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 1);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->traitFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isCheckablePropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->traitFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 2);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->traitFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isToggleablePropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->traitFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 3);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->traitFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isRequirablePropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->traitFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 4);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->traitFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isEnablablePropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->traitFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 5);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->traitFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isFocusablePropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->traitFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 6);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->traitFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isExpandedPropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->stateFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 0);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->stateFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isSelectedPropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->stateFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 1);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->stateFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isCheckedPropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->stateFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 2);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->stateFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isMixedPropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->stateFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 3);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->stateFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isToggledPropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->stateFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 4);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->stateFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isRequiredPropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->stateFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 5);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->stateFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isDisabledPropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->stateFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 6);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->stateFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isFocusedPropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->stateFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 7);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->stateFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isHiddenPropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->stateFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 8);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->stateFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isLiveRegionPropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->stateFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 9);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->stateFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isReadOnlyPropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->stateFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 10);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->stateFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isModalPropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->stateFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 11);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->stateFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isObscuredPropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->stateFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 12);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->stateFlags(_next);
+                    }
+                }
+                break;
+            }
+            case SemanticDataBase::isMultilinePropertyKey:
+            {
+                auto* _o = object->as<SemanticDataBase>();
+                if (_o)
+                {
+                    const uint32_t _cur = _o->stateFlags();
+                    const uint32_t _bm = static_cast<uint32_t>(1u << 13);
+                    const uint32_t _next = static_cast<uint32_t>(
+                        (_cur & ~_bm) |
+                        (value ? _bm : static_cast<uint32_t>(0)));
+                    if (_cur != _next)
+                    {
+                        _o->stateFlags(_next);
+                    }
+                }
+                break;
+            }
             case DataBindPathBase::isRelativePropertyKey:
                 object->as<DataBindPathBase>()->isRelative(value);
                 break;
@@ -1963,6 +2433,15 @@ public:
                 break;
             case ScrollConstraintBase::thresholdPropertyKey:
                 object->as<ScrollConstraintBase>()->threshold(value);
+                break;
+            case ScrollConstraintBase::velocityXPropertyKey:
+                object->as<ScrollConstraintBase>()->velocityX(value);
+                break;
+            case ScrollConstraintBase::velocityYPropertyKey:
+                object->as<ScrollConstraintBase>()->velocityY(value);
+                break;
+            case ScrollConstraintBase::dragMultiplierPropertyKey:
+                object->as<ScrollConstraintBase>()->dragMultiplier(value);
                 break;
             case ElasticScrollPhysicsBase::frictionPropertyKey:
                 object->as<ElasticScrollPhysicsBase>()->friction(value);
@@ -2576,6 +3055,9 @@ public:
     {
         switch (propertyKey)
         {
+            case ViewModelInstanceTriggerBase::firePropertyKey:
+                object->as<ViewModelInstanceTriggerBase>()->fire(value);
+                break;
             case CustomPropertyTriggerBase::firePropertyKey:
                 object->as<CustomPropertyTriggerBase>()->fire(value);
                 break;
@@ -2686,6 +3168,8 @@ public:
                 return object->as<ScriptedDrawableBase>()->scriptAssetId();
             case ScriptedDataConverterBase::scriptAssetIdPropertyKey:
                 return object->as<ScriptedDataConverterBase>()->scriptAssetId();
+            case ScriptedInterpolatorBase::scriptAssetIdPropertyKey:
+                return object->as<ScriptedInterpolatorBase>()->scriptAssetId();
             case ScriptedPathEffectBase::scriptAssetIdPropertyKey:
                 return object->as<ScriptedPathEffectBase>()->scriptAssetId();
             case NestedArtboardLayoutBase::instanceWidthUnitsValuePropertyKey:
@@ -2840,6 +3324,8 @@ public:
                 instanceHeightScaleTypePropertyKey:
                 return object->as<ArtboardComponentListOverrideBase>()
                     ->instanceHeightScaleType();
+            case ListenerActionBase::flagsPropertyKey:
+                return object->as<ListenerActionBase>()->flags();
             case ListenerFireEventBase::eventIdPropertyKey:
                 return object->as<ListenerFireEventBase>()->eventId();
             case LayerStateBase::flagsPropertyKey:
@@ -2909,6 +3395,8 @@ public:
                     ->opValue();
             case BlendState1DInputBase::inputIdPropertyKey:
                 return object->as<BlendState1DInputBase>()->inputId();
+            case FocusActionTargetBase::targetIdPropertyKey:
+                return object->as<FocusActionTargetBase>()->targetId();
             case TransitionValueIdComparatorBase::valuePropertyKey:
                 return object->as<TransitionValueIdComparatorBase>()->value();
             case StateTransitionBase::stateToIdPropertyKey:
@@ -2925,8 +3413,8 @@ public:
                 return object->as<StateTransitionBase>()->interpolatorId();
             case StateTransitionBase::randomWeightPropertyKey:
                 return object->as<StateTransitionBase>()->randomWeight();
-            case FocusActionBase::targetIdPropertyKey:
-                return object->as<FocusActionBase>()->targetId();
+            case FocusActionTraversalBase::traversalKindPropertyKey:
+                return object->as<FocusActionTraversalBase>()->traversalKind();
             case StateMachineFireEventBase::eventIdPropertyKey:
                 return object->as<StateMachineFireEventBase>()->eventId();
             case LinearAnimationBase::fpsPropertyKey:
@@ -3003,6 +3491,14 @@ public:
                 return object->as<JoystickBase>()->handleSourceId();
             case OpenUrlEventBase::targetValuePropertyKey:
                 return object->as<OpenUrlEventBase>()->targetValue();
+            case SemanticDataBase::rolePropertyKey:
+                return object->as<SemanticDataBase>()->role();
+            case SemanticDataBase::headingLevelPropertyKey:
+                return object->as<SemanticDataBase>()->headingLevel();
+            case SemanticDataBase::traitFlagsPropertyKey:
+                return object->as<SemanticDataBase>()->traitFlags();
+            case SemanticDataBase::stateFlagsPropertyKey:
+                return object->as<SemanticDataBase>()->stateFlags();
             case BindablePropertyIdBase::propertyValuePropertyKey:
                 return object->as<BindablePropertyIdBase>()->propertyValue();
             case BindablePropertyIntegerBase::propertyValuePropertyKey:
@@ -3111,6 +3607,14 @@ public:
                 return object->as<TextBase>()->verticalAlignValue();
             case TextBase::textRunListSourcePropertyKey:
                 return object->as<TextBase>()->textRunListSource();
+            case TextBase::verticalTrimValuePropertyKey:
+                return object->as<TextBase>()->verticalTrimValue();
+            case TextBase::verticalTrimTopValuePropertyKey:
+                return (object->as<TextBase>()->verticalTrimValue() >> 0) &
+                       255u;
+            case TextBase::verticalTrimBottomValuePropertyKey:
+                return (object->as<TextBase>()->verticalTrimValue() >> 8) &
+                       255u;
             case TextValueRunBase::styleIdPropertyKey:
                 return object->as<TextValueRunBase>()->styleId();
             case ArtboardListMapRuleBase::artboardIdPropertyKey:
@@ -3125,14 +3629,27 @@ public:
                 return object->as<FileAssetBase>()->assetId();
             case ScriptAssetBase::generatorFunctionRefPropertyKey:
                 return object->as<ScriptAssetBase>()->generatorFunctionRef();
+            case ScriptAssetBase::serializedImplementedMethodsPropertyKey:
+                return object->as<ScriptAssetBase>()
+                    ->serializedImplementedMethods();
             case AudioEventBase::assetIdPropertyKey:
                 return object->as<AudioEventBase>()->assetId();
+            case GamepadInputBase::kindPropertyKey:
+                return object->as<GamepadInputBase>()->kind();
+            case GamepadInputBase::mappingPropertyKey:
+                return object->as<GamepadInputBase>()->mapping();
+            case GamepadInputBase::inputIndexPropertyKey:
+                return object->as<GamepadInputBase>()->inputIndex();
+            case GamepadInputBase::buttonPhasePropertyKey:
+                return object->as<GamepadInputBase>()->buttonPhase();
             case KeyboardInputBase::keyTypePropertyKey:
                 return object->as<KeyboardInputBase>()->keyType();
             case KeyboardInputBase::keyPhasePropertyKey:
                 return object->as<KeyboardInputBase>()->keyPhase();
             case KeyboardInputBase::modifiersPropertyKey:
                 return object->as<KeyboardInputBase>()->modifiers();
+            case SemanticInputBase::actionTypePropertyKey:
+                return object->as<SemanticInputBase>()->actionType();
             case ScriptInputArtboardBase::artboardIdPropertyKey:
                 return object->as<ScriptInputArtboardBase>()->artboardId();
         }
@@ -3168,6 +3685,12 @@ public:
                     ->value();
             case OpenUrlEventBase::urlPropertyKey:
                 return object->as<OpenUrlEventBase>()->url();
+            case SemanticDataBase::labelPropertyKey:
+                return object->as<SemanticDataBase>()->label();
+            case SemanticDataBase::valuePropertyKey:
+                return object->as<SemanticDataBase>()->value();
+            case SemanticDataBase::hintPropertyKey:
+                return object->as<SemanticDataBase>()->hint();
             case CustomPropertyStringBase::propertyValuePropertyKey:
                 return object->as<CustomPropertyStringBase>()->propertyValue();
             case DataConverterStringPadBase::textPropertyKey:
@@ -3185,8 +3708,8 @@ public:
                 return object->as<AssetBase>()->name();
             case FileAssetBase::cdnBaseUrlPropertyKey:
                 return object->as<FileAssetBase>()->cdnBaseUrl();
-            case ScriptAssetBase::folderPathPropertyKey:
-                return object->as<ScriptAssetBase>()->folderPath();
+            case TextAssetBase::folderPathPropertyKey:
+                return object->as<TextAssetBase>()->folderPath();
         }
         return "";
     }
@@ -3250,10 +3773,14 @@ public:
                 return object->as<ScrollConstraintBase>()->infinite();
             case ScrollConstraintBase::interactivePropertyKey:
                 return object->as<ScrollConstraintBase>()->interactive();
+            case ScrollConstraintBase::scrollActivePropertyKey:
+                return object->as<ScrollConstraintBase>()->scrollActive();
             case ScrollBarConstraintBase::autoSizePropertyKey:
                 return object->as<ScrollBarConstraintBase>()->autoSize();
             case NestedArtboardBase::isPausedPropertyKey:
                 return object->as<NestedArtboardBase>()->isPaused();
+            case NestedArtboardBase::isStatefulPropertyKey:
+                return object->as<NestedArtboardBase>()->isStateful();
             case AxisBase::normalizedPropertyKey:
                 return object->as<AxisBase>()->normalized();
             case LayoutComponentStyleBase::intrinsicallySizedValuePropertyKey:
@@ -3307,8 +3834,6 @@ public:
                 return object->as<CustomPropertyBooleanBase>()->propertyValue();
             case LayoutComponentBase::clipPropertyKey:
                 return object->as<LayoutComponentBase>()->clip();
-            case ArtboardBase::isStatefulPropertyKey:
-                return object->as<ArtboardBase>()->isStateful();
             case DataBindPathBase::isRelativePropertyKey:
                 return object->as<DataBindPathBase>()->isRelative();
             case BindablePropertyBooleanBase::propertyValuePropertyKey:
@@ -3380,6 +3905,12 @@ public:
                 return object->as<ScrollConstraintBase>()->scrollIndex();
             case ScrollConstraintBase::thresholdPropertyKey:
                 return object->as<ScrollConstraintBase>()->threshold();
+            case ScrollConstraintBase::velocityXPropertyKey:
+                return object->as<ScrollConstraintBase>()->velocityX();
+            case ScrollConstraintBase::velocityYPropertyKey:
+                return object->as<ScrollConstraintBase>()->velocityY();
+            case ScrollConstraintBase::dragMultiplierPropertyKey:
+                return object->as<ScrollConstraintBase>()->dragMultiplier();
             case ElasticScrollPhysicsBase::frictionPropertyKey:
                 return object->as<ElasticScrollPhysicsBase>()->friction();
             case ElasticScrollPhysicsBase::speedMultiplierPropertyKey:
@@ -3837,6 +4368,7 @@ public:
             case SoloBase::activeComponentIdPropertyKey:
             case ScriptedDrawableBase::scriptAssetIdPropertyKey:
             case ScriptedDataConverterBase::scriptAssetIdPropertyKey:
+            case ScriptedInterpolatorBase::scriptAssetIdPropertyKey:
             case ScriptedPathEffectBase::scriptAssetIdPropertyKey:
             case NestedArtboardLayoutBase::instanceWidthUnitsValuePropertyKey:
             case NestedArtboardLayoutBase::instanceHeightUnitsValuePropertyKey:
@@ -3894,6 +4426,7 @@ public:
                 instanceWidthScaleTypePropertyKey:
             case ArtboardComponentListOverrideBase::
                 instanceHeightScaleTypePropertyKey:
+            case ListenerActionBase::flagsPropertyKey:
             case ListenerFireEventBase::eventIdPropertyKey:
             case LayerStateBase::flagsPropertyKey:
             case StateMachineFireActionBase::occursValuePropertyKey:
@@ -3925,6 +4458,7 @@ public:
             case TransitionValueConditionBase::opValuePropertyKey:
             case TransitionViewModelConditionBase::opValuePropertyKey:
             case BlendState1DInputBase::inputIdPropertyKey:
+            case FocusActionTargetBase::targetIdPropertyKey:
             case TransitionValueIdComparatorBase::valuePropertyKey:
             case StateTransitionBase::stateToIdPropertyKey:
             case StateTransitionBase::flagsPropertyKey:
@@ -3933,7 +4467,7 @@ public:
             case StateTransitionBase::interpolationTypePropertyKey:
             case StateTransitionBase::interpolatorIdPropertyKey:
             case StateTransitionBase::randomWeightPropertyKey:
-            case FocusActionBase::targetIdPropertyKey:
+            case FocusActionTraversalBase::traversalKindPropertyKey:
             case StateMachineFireEventBase::eventIdPropertyKey:
             case LinearAnimationBase::fpsPropertyKey:
             case LinearAnimationBase::durationPropertyKey:
@@ -3971,6 +4505,10 @@ public:
             case JoystickBase::joystickFlagsPropertyKey:
             case JoystickBase::handleSourceIdPropertyKey:
             case OpenUrlEventBase::targetValuePropertyKey:
+            case SemanticDataBase::rolePropertyKey:
+            case SemanticDataBase::headingLevelPropertyKey:
+            case SemanticDataBase::traitFlagsPropertyKey:
+            case SemanticDataBase::stateFlagsPropertyKey:
             case BindablePropertyIdBase::propertyValuePropertyKey:
             case BindablePropertyIntegerBase::propertyValuePropertyKey:
             case DataBindBase::propertyKeyPropertyKey:
@@ -4021,6 +4559,7 @@ public:
             case TextBase::wrapValuePropertyKey:
             case TextBase::verticalAlignValuePropertyKey:
             case TextBase::textRunListSourcePropertyKey:
+            case TextBase::verticalTrimValuePropertyKey:
             case TextValueRunBase::styleIdPropertyKey:
             case ArtboardListMapRuleBase::artboardIdPropertyKey:
             case ArtboardListMapRuleBase::viewModelIdPropertyKey:
@@ -4028,10 +4567,16 @@ public:
             case CustomPropertyEnumBase::enumIdPropertyKey:
             case FileAssetBase::assetIdPropertyKey:
             case ScriptAssetBase::generatorFunctionRefPropertyKey:
+            case ScriptAssetBase::serializedImplementedMethodsPropertyKey:
             case AudioEventBase::assetIdPropertyKey:
+            case GamepadInputBase::kindPropertyKey:
+            case GamepadInputBase::mappingPropertyKey:
+            case GamepadInputBase::inputIndexPropertyKey:
+            case GamepadInputBase::buttonPhasePropertyKey:
             case KeyboardInputBase::keyTypePropertyKey:
             case KeyboardInputBase::keyPhasePropertyKey:
             case KeyboardInputBase::modifiersPropertyKey:
+            case SemanticInputBase::actionTypePropertyKey:
             case ScriptInputArtboardBase::artboardIdPropertyKey:
                 return CoreUintType::id;
             case ViewModelComponentBase::namePropertyKey:
@@ -4046,6 +4591,9 @@ public:
             case KeyFrameStringBase::valuePropertyKey:
             case TransitionValueStringComparatorBase::valuePropertyKey:
             case OpenUrlEventBase::urlPropertyKey:
+            case SemanticDataBase::labelPropertyKey:
+            case SemanticDataBase::valuePropertyKey:
+            case SemanticDataBase::hintPropertyKey:
             case CustomPropertyStringBase::propertyValuePropertyKey:
             case DataConverterStringPadBase::textPropertyKey:
             case DataConverterToStringBase::colorFormatPropertyKey:
@@ -4054,7 +4602,7 @@ public:
             case TextValueRunBase::textPropertyKey:
             case AssetBase::namePropertyKey:
             case FileAssetBase::cdnBaseUrlPropertyKey:
-            case ScriptAssetBase::folderPathPropertyKey:
+            case TextAssetBase::folderPathPropertyKey:
                 return CoreStringType::id;
             case ViewModelInstanceColorBase::propertyValuePropertyKey:
             case CustomPropertyColorBase::propertyValuePropertyKey:
@@ -4079,8 +4627,10 @@ public:
             case ScrollConstraintBase::virtualizePropertyKey:
             case ScrollConstraintBase::infinitePropertyKey:
             case ScrollConstraintBase::interactivePropertyKey:
+            case ScrollConstraintBase::scrollActivePropertyKey:
             case ScrollBarConstraintBase::autoSizePropertyKey:
             case NestedArtboardBase::isPausedPropertyKey:
+            case NestedArtboardBase::isStatefulPropertyKey:
             case AxisBase::normalizedPropertyKey:
             case LayoutComponentStyleBase::intrinsicallySizedValuePropertyKey:
             case LayoutComponentStyleBase::linkCornerRadiusPropertyKey:
@@ -4106,7 +4656,6 @@ public:
             case FocusDataBase::canTraversePropertyKey:
             case CustomPropertyBooleanBase::propertyValuePropertyKey:
             case LayoutComponentBase::clipPropertyKey:
-            case ArtboardBase::isStatefulPropertyKey:
             case DataBindPathBase::isRelativePropertyKey:
             case BindablePropertyBooleanBase::propertyValuePropertyKey:
             case TextModifierRangeBase::clampPropertyKey:
@@ -4135,6 +4684,9 @@ public:
             case ScrollConstraintBase::scrollPercentYPropertyKey:
             case ScrollConstraintBase::scrollIndexPropertyKey:
             case ScrollConstraintBase::thresholdPropertyKey:
+            case ScrollConstraintBase::velocityXPropertyKey:
+            case ScrollConstraintBase::velocityYPropertyKey:
+            case ScrollConstraintBase::dragMultiplierPropertyKey:
             case ElasticScrollPhysicsBase::frictionPropertyKey:
             case ElasticScrollPhysicsBase::speedMultiplierPropertyKey:
             case ElasticScrollPhysicsBase::elasticFactorPropertyKey:
@@ -4359,6 +4911,7 @@ public:
     {
         switch (propertyKey)
         {
+            case ViewModelInstanceTriggerBase::firePropertyKey:
             case CustomPropertyTriggerBase::firePropertyKey:
             case NestedTriggerBase::firePropertyKey:
             case EventBase::triggerPropertyKey:
@@ -4452,6 +5005,8 @@ public:
                 return object->is<ScriptedDrawableBase>();
             case ScriptedDataConverterBase::scriptAssetIdPropertyKey:
                 return object->is<ScriptedDataConverterBase>();
+            case ScriptedInterpolatorBase::scriptAssetIdPropertyKey:
+                return object->is<ScriptedInterpolatorBase>();
             case ScriptedPathEffectBase::scriptAssetIdPropertyKey:
                 return object->is<ScriptedPathEffectBase>();
             case NestedArtboardLayoutBase::instanceWidthUnitsValuePropertyKey:
@@ -4562,6 +5117,8 @@ public:
             case ArtboardComponentListOverrideBase::
                 instanceHeightScaleTypePropertyKey:
                 return object->is<ArtboardComponentListOverrideBase>();
+            case ListenerActionBase::flagsPropertyKey:
+                return object->is<ListenerActionBase>();
             case ListenerFireEventBase::eventIdPropertyKey:
                 return object->is<ListenerFireEventBase>();
             case LayerStateBase::flagsPropertyKey:
@@ -4623,6 +5180,8 @@ public:
                 return object->is<TransitionViewModelConditionBase>();
             case BlendState1DInputBase::inputIdPropertyKey:
                 return object->is<BlendState1DInputBase>();
+            case FocusActionTargetBase::targetIdPropertyKey:
+                return object->is<FocusActionTargetBase>();
             case TransitionValueIdComparatorBase::valuePropertyKey:
                 return object->is<TransitionValueIdComparatorBase>();
             case StateTransitionBase::stateToIdPropertyKey:
@@ -4639,8 +5198,8 @@ public:
                 return object->is<StateTransitionBase>();
             case StateTransitionBase::randomWeightPropertyKey:
                 return object->is<StateTransitionBase>();
-            case FocusActionBase::targetIdPropertyKey:
-                return object->is<FocusActionBase>();
+            case FocusActionTraversalBase::traversalKindPropertyKey:
+                return object->is<FocusActionTraversalBase>();
             case StateMachineFireEventBase::eventIdPropertyKey:
                 return object->is<StateMachineFireEventBase>();
             case LinearAnimationBase::fpsPropertyKey:
@@ -4714,6 +5273,14 @@ public:
                 return object->is<JoystickBase>();
             case OpenUrlEventBase::targetValuePropertyKey:
                 return object->is<OpenUrlEventBase>();
+            case SemanticDataBase::rolePropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::headingLevelPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::traitFlagsPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::stateFlagsPropertyKey:
+                return object->is<SemanticDataBase>();
             case BindablePropertyIdBase::propertyValuePropertyKey:
                 return object->is<BindablePropertyIdBase>();
             case BindablePropertyIntegerBase::propertyValuePropertyKey:
@@ -4814,6 +5381,12 @@ public:
                 return object->is<TextBase>();
             case TextBase::textRunListSourcePropertyKey:
                 return object->is<TextBase>();
+            case TextBase::verticalTrimValuePropertyKey:
+                return object->is<TextBase>();
+            case TextBase::verticalTrimTopValuePropertyKey:
+                return object->is<TextBase>();
+            case TextBase::verticalTrimBottomValuePropertyKey:
+                return object->is<TextBase>();
             case TextValueRunBase::styleIdPropertyKey:
                 return object->is<TextValueRunBase>();
             case ArtboardListMapRuleBase::artboardIdPropertyKey:
@@ -4828,14 +5401,26 @@ public:
                 return object->is<FileAssetBase>();
             case ScriptAssetBase::generatorFunctionRefPropertyKey:
                 return object->is<ScriptAssetBase>();
+            case ScriptAssetBase::serializedImplementedMethodsPropertyKey:
+                return object->is<ScriptAssetBase>();
             case AudioEventBase::assetIdPropertyKey:
                 return object->is<AudioEventBase>();
+            case GamepadInputBase::kindPropertyKey:
+                return object->is<GamepadInputBase>();
+            case GamepadInputBase::mappingPropertyKey:
+                return object->is<GamepadInputBase>();
+            case GamepadInputBase::inputIndexPropertyKey:
+                return object->is<GamepadInputBase>();
+            case GamepadInputBase::buttonPhasePropertyKey:
+                return object->is<GamepadInputBase>();
             case KeyboardInputBase::keyTypePropertyKey:
                 return object->is<KeyboardInputBase>();
             case KeyboardInputBase::keyPhasePropertyKey:
                 return object->is<KeyboardInputBase>();
             case KeyboardInputBase::modifiersPropertyKey:
                 return object->is<KeyboardInputBase>();
+            case SemanticInputBase::actionTypePropertyKey:
+                return object->is<SemanticInputBase>();
             case ScriptInputArtboardBase::artboardIdPropertyKey:
                 return object->is<ScriptInputArtboardBase>();
             case ViewModelComponentBase::namePropertyKey:
@@ -4862,6 +5447,12 @@ public:
                 return object->is<TransitionValueStringComparatorBase>();
             case OpenUrlEventBase::urlPropertyKey:
                 return object->is<OpenUrlEventBase>();
+            case SemanticDataBase::labelPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::valuePropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::hintPropertyKey:
+                return object->is<SemanticDataBase>();
             case CustomPropertyStringBase::propertyValuePropertyKey:
                 return object->is<CustomPropertyStringBase>();
             case DataConverterStringPadBase::textPropertyKey:
@@ -4878,8 +5469,8 @@ public:
                 return object->is<AssetBase>();
             case FileAssetBase::cdnBaseUrlPropertyKey:
                 return object->is<FileAssetBase>();
-            case ScriptAssetBase::folderPathPropertyKey:
-                return object->is<ScriptAssetBase>();
+            case TextAssetBase::folderPathPropertyKey:
+                return object->is<TextAssetBase>();
             case ViewModelInstanceColorBase::propertyValuePropertyKey:
                 return object->is<ViewModelInstanceColorBase>();
             case CustomPropertyColorBase::propertyValuePropertyKey:
@@ -4924,9 +5515,13 @@ public:
                 return object->is<ScrollConstraintBase>();
             case ScrollConstraintBase::interactivePropertyKey:
                 return object->is<ScrollConstraintBase>();
+            case ScrollConstraintBase::scrollActivePropertyKey:
+                return object->is<ScrollConstraintBase>();
             case ScrollBarConstraintBase::autoSizePropertyKey:
                 return object->is<ScrollBarConstraintBase>();
             case NestedArtboardBase::isPausedPropertyKey:
+                return object->is<NestedArtboardBase>();
+            case NestedArtboardBase::isStatefulPropertyKey:
                 return object->is<NestedArtboardBase>();
             case AxisBase::normalizedPropertyKey:
                 return object->is<AxisBase>();
@@ -4978,8 +5573,48 @@ public:
                 return object->is<CustomPropertyBooleanBase>();
             case LayoutComponentBase::clipPropertyKey:
                 return object->is<LayoutComponentBase>();
-            case ArtboardBase::isStatefulPropertyKey:
-                return object->is<ArtboardBase>();
+            case SemanticDataBase::isExpandablePropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isSelectablePropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isCheckablePropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isToggleablePropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isRequirablePropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isEnablablePropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isFocusablePropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isExpandedPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isSelectedPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isCheckedPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isMixedPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isToggledPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isRequiredPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isDisabledPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isFocusedPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isHiddenPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isLiveRegionPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isReadOnlyPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isModalPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isObscuredPropertyKey:
+                return object->is<SemanticDataBase>();
+            case SemanticDataBase::isMultilinePropertyKey:
+                return object->is<SemanticDataBase>();
             case DataBindPathBase::isRelativePropertyKey:
                 return object->is<DataBindPathBase>();
             case BindablePropertyBooleanBase::propertyValuePropertyKey:
@@ -5033,6 +5668,12 @@ public:
             case ScrollConstraintBase::scrollIndexPropertyKey:
                 return object->is<ScrollConstraintBase>();
             case ScrollConstraintBase::thresholdPropertyKey:
+                return object->is<ScrollConstraintBase>();
+            case ScrollConstraintBase::velocityXPropertyKey:
+                return object->is<ScrollConstraintBase>();
+            case ScrollConstraintBase::velocityYPropertyKey:
+                return object->is<ScrollConstraintBase>();
+            case ScrollConstraintBase::dragMultiplierPropertyKey:
                 return object->is<ScrollConstraintBase>();
             case ElasticScrollPhysicsBase::frictionPropertyKey:
                 return object->is<ElasticScrollPhysicsBase>();
@@ -5436,6 +6077,8 @@ public:
                 return object->is<DrawableAssetBase>();
             case ExportAudioBase::volumePropertyKey:
                 return object->is<ExportAudioBase>();
+            case ViewModelInstanceTriggerBase::firePropertyKey:
+                return object->is<ViewModelInstanceTriggerBase>();
             case CustomPropertyTriggerBase::firePropertyKey:
                 return object->is<CustomPropertyTriggerBase>();
             case NestedTriggerBase::firePropertyKey:

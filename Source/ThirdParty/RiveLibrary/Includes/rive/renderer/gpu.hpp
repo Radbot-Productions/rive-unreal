@@ -16,6 +16,7 @@
 #include "rive/shapes/paint/image_sampler.hpp"
 
 #include <functional>
+#include <optional>
 
 // Use the define to run the feather LUT code
 // #define RIVE_GENERATE_FEATHER_LUT
@@ -219,6 +220,17 @@ struct PlatformFeatures
     // clockwiseFill/atomic mode. 2^27 bytes is the minimum storage buffer size
     // requirement in the Vulkan, GL, and D3D11 specs. Metal guarantees 256 MB.
     size_t maxCoverageBufferLength = (1 << 27) / sizeof(uint32_t);
+
+    // True when the backend supports using the scissor rectangle for reducing
+    // the draw bounds of clip reads and writes.
+    // TODO: This should be possible to implement across all backends - at which
+    // point this bool could go away.
+    bool supportsClipScissor = false;
+
+    // GPU compressed texture format support (queried per backend at init).
+    bool supportsTextureCompressionBC = false;   // BC1/BC2/BC3/BC7
+    bool supportsTextureCompressionASTC = false; // ASTC LDR (any block size)
+    bool supportsTextureCompressionETC2 = false; // ETC2 RGB8 / RGBA8
 };
 
 // Gradient color stops are implemented as a horizontal span of pixels in a
@@ -658,8 +670,8 @@ enum class DrawType : uint8_t
     // type is included in order to support the "retrofittedcubictriangles" GM.
     msaaOuterCubics,
 
-    // Clear or intersect (based on DrawContents) the stencil clip bit.
-    msaaStencilClipReset,
+    // Clear or intersect (based on DrawContents) the clip value.
+    clipReset,
 
     // Clear/init render pass data with a fullscreen draw when we can't do it
     // with existing clear/load APIs. (e.g., for pixel local storage in buffers
@@ -693,7 +705,7 @@ constexpr static bool DrawTypeIsImageDraw(DrawType drawType)
         case DrawType::msaaMidpointFanPathsStencil:
         case DrawType::msaaMidpointFanPathsCover:
         case DrawType::msaaOuterCubics:
-        case DrawType::msaaStencilClipReset:
+        case DrawType::clipReset:
         case DrawType::renderPassInitialize:
         case DrawType::renderPassResolve:
             return false;
@@ -727,7 +739,7 @@ constexpr static uint32_t PatchIndexCount(DrawType drawType)
         case DrawType::atlasBlit:
         case DrawType::imageRect:
         case DrawType::imageMesh:
-        case DrawType::msaaStencilClipReset:
+        case DrawType::clipReset:
         case DrawType::renderPassInitialize:
         case DrawType::renderPassResolve:
             RIVE_UNREACHABLE();
@@ -759,7 +771,7 @@ constexpr static uint32_t PatchBaseIndex(DrawType drawType)
         case DrawType::atlasBlit:
         case DrawType::imageRect:
         case DrawType::imageMesh:
-        case DrawType::msaaStencilClipReset:
+        case DrawType::clipReset:
         case DrawType::renderPassInitialize:
         case DrawType::renderPassResolve:
             RIVE_UNREACHABLE();
@@ -801,7 +813,7 @@ static_assert(INTERLOCK_MODE_COUNT > (1 << (INTERLOCK_MODE_BIT_COUNT - 1)));
 // Low-level batch of scissored geometry for rendering to the offscreen atlas.
 struct AtlasDrawBatch
 {
-    TAABB<uint16_t> scissor;
+    AABBu16 scissor;
     uint32_t patchCount;
     uint32_t basePatch;
 };
@@ -852,13 +864,13 @@ constexpr static ShaderFeatures ShaderFeaturesMaskFor(
         case InterlockMode::clockwise:
             return kAllShaderFeatures & ~ShaderFeatures::ENABLE_EVEN_ODD;
         case InterlockMode::clockwiseAtomic:
-            // TODO: shader features aren't fully implemented yet in
-            // clockwiseAtomic mode.
-            return ShaderFeatures::ENABLE_CLIP_RECT |
-                   ShaderFeatures::ENABLE_ADVANCED_BLEND |
-                   ShaderFeatures::ENABLE_HSL_BLEND_MODES |
-                   ShaderFeatures::ENABLE_FEATHER |
-                   ShaderFeatures::ENABLE_DITHER;
+            return kAllShaderFeatures &
+                   // clockwiseAtomic never supports even/odd fill rule.
+                   ~ShaderFeatures::ENABLE_EVEN_ODD &
+                   // clockwiseAtomic requires special blend state for nested
+                   // clip updates, so they need their own draw anyway and the
+                   // ENABLE_NESTED_CLIPPING feature isn't necessary.
+                   ~ShaderFeatures::ENABLE_NESTED_CLIPPING;
         case InterlockMode::msaa:
             return ShaderFeatures::ENABLE_CLIP_RECT |
                    ShaderFeatures::ENABLE_ADVANCED_BLEND |
@@ -885,8 +897,14 @@ enum class ShaderMiscFlags : uint32_t
     // get filled.
     clockwiseFill = 1 << 1,
 
-    // This shader only renders to the clip buffer. It doesn't output color.
+    // clockwise and clockwiseAtomic only: This is a specialized shader that
+    // only renders to the clip buffer. It doesn't output color.
     clipUpdateOnly = 1 << 2,
+
+    // clockwiseAtomic only: This is a specialized shader that only subtracts
+    // coverage from the existing clip contents (i.e., nested clip updates).
+    // It doesn't output color.
+    nestedClipUpdateOnly = 1 << 3,
 
     // clockwise and clockwiseAtomic modes only. This shader renders a pass that
     // only subtracts (counterclockwise) borrowed coverage from the coverage
@@ -894,16 +912,23 @@ enum class ShaderMiscFlags : uint32_t
     // If drawing interior triangulations, every fragment will be the first of
     // the path at its pixel, so it can blindly overwrite coverage without
     // reading the buffer and subtracting.
-    borrowedCoveragePass = 1 << 3,
+    borrowedCoveragePass = 1 << 4,
 
     // DrawType::renderPassInitialize only. Also store the color clear value to
     // PLS when drawing a clear, in addition to clearing the other PLS planes.
-    storeColorClear = 1 << 4,
+    storeColorClear = 1 << 5,
+
+    // DrawType::renderPassInitialize only. Seed the color PLS plane by
+    // sampling the framebuffer contents (previously copied into a dst color
+    // texture bound at IMAGE_TEXTURE_IDX). Used for
+    // LoadAction::preserveRenderTarget on backends that can't directly copy
+    // a texture into a storage buffer (e.g. WebGPU).
+    loadColorFromDstTexture = 1 << 6,
 
     // DrawType::renderPassInitialize only. Swizzle the existing framebuffer
     // contents from BGRA to RGBA. (For when this data had to get copied from a
     // BGRA target.)
-    swizzleColorBGRAToRGBA = 1 << 5,
+    swizzleColorBGRAToRGBA = 1 << 7,
 
     // DrawType::renderPassResolve only. Optimization for when rendering to an
     // offscreen texture.
@@ -911,7 +936,7 @@ enum class ShaderMiscFlags : uint32_t
     // It renders the final "resolve" operation directly to the renderTarget in
     // a single pass, instead of (1) resolving the offscreen texture, and then
     // (2) copying the offscreen texture to back the renderTarget.
-    coalescedResolveAndTransfer = 1 << 6,
+    coalescedResolveAndTransfer = 1 << 8,
 };
 
 constexpr static ShaderFeatures ShaderFeaturesMaskFor(
@@ -949,7 +974,7 @@ constexpr static ShaderFeatures ShaderFeaturesMaskFor(
         case DrawType::msaaOuterCubics:
             mask = kAllShaderFeatures;
             break;
-        case DrawType::msaaStencilClipReset:
+        case DrawType::clipReset:
             mask = ShaderFeatures::ENABLE_DITHER;
             break;
         case DrawType::renderPassInitialize:
@@ -1182,6 +1207,7 @@ struct DrawBatch
     uint32_t baseElement;  // Base vertex, index, or instance.
     rive::BlendMode firstBlendMode;
     BarrierFlags barriers; // Barriers to execute before drawing this batch.
+    std::optional<AABBu16> scissorRect;
 
     ShaderFeatures shaderFeatures = ShaderFeatures::NONE;
 
@@ -1900,7 +1926,8 @@ enum class BlendEquation : uint8_t
     // Core hardware blend equations supported on all platforms.
     srcOver = static_cast<int>(rive::BlendMode::srcOver),
     plus = srcOver + 1,
-    max = plus + 1,
+    min = srcOver + 2,
+    max = srcOver + 3,
 
     // "Advanced" hardware blend equations.
     // PlatformFeatures::supportsKHRBlendEquations is required.
@@ -1985,35 +2012,29 @@ void get_pipeline_state(const DrawBatch&,
 // Default PipelineState values as specified in OpenGL.
 constexpr static PipelineState GL_DEFAULT_PIPELINE_STATE = {};
 
-constexpr static PipelineState COLOR_ONLY_PIPELINE_STATE = {
-    .depthTestEnabled = false,
-    .depthWriteEnabled = false,
-    .stencilTestEnabled = false,
-    .stencilWriteMask = 0,
-    .cullFace = CullFace::none,
-    .blendEquation = BlendEquation::none,
-    .colorWriteEnabled = true,
-};
+// Helper to create PipelineState with no depth/stencil and custom blend/cull.
+constexpr inline PipelineState make_flat_pipeline_state(CullFace cull,
+                                                        BlendEquation blend)
+{
+    PipelineState s{};
+    s.depthTestEnabled = false;
+    s.depthWriteEnabled = false;
+    s.stencilTestEnabled = false;
+    s.stencilWriteMask = 0;
+    s.cullFace = cull;
+    s.blendEquation = blend;
+    s.colorWriteEnabled = true;
+    return s;
+}
 
-constexpr static PipelineState ATLAS_FILL_PIPELINE_STATE = {
-    .depthTestEnabled = false,
-    .depthWriteEnabled = false,
-    .stencilTestEnabled = false,
-    .stencilWriteMask = 0,
-    .cullFace = CullFace::none,
-    .blendEquation = BlendEquation::plus,
-    .colorWriteEnabled = true,
-};
+constexpr static PipelineState COLOR_ONLY_PIPELINE_STATE =
+    make_flat_pipeline_state(CullFace::none, BlendEquation::none);
 
-constexpr static PipelineState ATLAS_STROKE_PIPELINE_STATE = {
-    .depthTestEnabled = false,
-    .depthWriteEnabled = false,
-    .stencilTestEnabled = false,
-    .stencilWriteMask = 0,
-    .cullFace = CullFace::counterclockwise,
-    .blendEquation = BlendEquation::max,
-    .colorWriteEnabled = true,
-};
+constexpr static PipelineState ATLAS_FILL_PIPELINE_STATE =
+    make_flat_pipeline_state(CullFace::none, BlendEquation::plus);
+
+constexpr static PipelineState ATLAS_STROKE_PIPELINE_STATE =
+    make_flat_pipeline_state(CullFace::counterclockwise, BlendEquation::max);
 
 float4 cast_f16_to_f32(uint16x4 x);
 uint16x4 cast_f32_to_f16(float4);

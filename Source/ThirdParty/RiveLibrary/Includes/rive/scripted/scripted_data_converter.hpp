@@ -38,7 +38,7 @@ private:
 public:
     ~ScriptedDataConverter();
 #ifdef WITH_RIVE_SCRIPTING
-    bool scriptInit(ScriptingVM* vm) override;
+    void didHydrateScriptInputs() override;
     DataValue* convert(DataValue* value, DataBind* dataBind) override;
     DataValue* reverseConvert(DataValue* value, DataBind* dataBind) override;
 #endif
@@ -49,6 +49,7 @@ public:
     bool advanceComponent(float elapsedSeconds,
                           AdvanceFlags flags = AdvanceFlags::Animate |
                                                AdvanceFlags::NewFrame) override;
+    bool advance(float elapsedSeconds) override;
     StatusCode import(ImportStack& importStack) override;
     void addProperty(CustomProperty* prop) override;
     Core* clone() const override;

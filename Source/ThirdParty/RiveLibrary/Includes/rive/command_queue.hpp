@@ -112,6 +112,16 @@ public:
 
         virtual void onFileLoaded(const FileHandle, uint64_t requestId) {}
 
+        virtual void onArtboardInstantiated(const FileHandle,
+                                            uint64_t requestId,
+                                            ArtboardHandle)
+        {}
+
+        virtual void onViewModelInstanceInstantiated(const FileHandle,
+                                                     uint64_t requestId,
+                                                     ViewModelInstanceHandle)
+        {}
+
         virtual void onArtboardsListed(const FileHandle,
                                        uint64_t requestId,
                                        std::vector<std::string> artboardNames)
@@ -146,6 +156,21 @@ public:
         virtual void onViewModelEnumsListed(const FileHandle,
                                             uint64_t requestId,
                                             std::vector<ViewModelEnum> enums)
+        {}
+
+        struct FileAssetData
+        {
+            std::string name;
+            uint32_t assetID = 0;
+            std::string cdnUUID;
+            std::string cdnBaseURL;
+            std::string fileExtension;
+            uint16_t type = 0;
+        };
+
+        virtual void onFileAssetsListed(const FileHandle,
+                                        uint64_t requestId,
+                                        std::vector<FileAssetData> assets)
         {}
     };
 
@@ -219,6 +244,11 @@ public:
         virtual void onArtboardDeleted(const ArtboardHandle, uint64_t requestId)
         {}
 
+        virtual void onStateMachineInstantiated(const ArtboardHandle,
+                                                uint64_t requestId,
+                                                StateMachineHandle)
+        {}
+
         virtual void onStateMachinesListed(
             const ArtboardHandle,
             uint64_t requestId,
@@ -273,6 +303,11 @@ public:
                                                  uint64_t requestId,
                                                  std::string path,
                                                  size_t size)
+        {}
+
+        virtual void onViewModelListCleared(const ViewModelInstanceHandle,
+                                            uint64_t requestId,
+                                            std::string path)
         {}
     };
 
@@ -586,6 +621,10 @@ public:
     // will be run per pollCommands.
     void draw(DrawKey, CommandServerDrawCallback);
 
+    // Cancel a pending draw for the given key if it has already been admitted
+    // to the current coalesced draw batch.
+    void cancelDraw(DrawKey);
+
 #ifdef TESTING
     // Sends a commandLoopBreak command to the server. This will cause the
     // processCommands to return even if there are more commands to consume.
@@ -593,7 +632,6 @@ public:
     // return. To continue processing commands, another call to processCommands
     // is required.
     void testing_commandLoopBreak();
-
     FileListener* testing_getFileListener(FileHandle);
     ArtboardListener* testing_getArtboardListener(ArtboardHandle);
     StateMachineListener* testing_getStateMachineListener(StateMachineHandle);
@@ -603,6 +641,7 @@ public:
 
     void requestViewModelNames(FileHandle, uint64_t requestId = 0);
     void requestArtboardNames(FileHandle, uint64_t requestId = 0);
+    void requestFileAssets(FileHandle, uint64_t requestId = 0);
     void requestViewModelInstanceViewModelName(ViewModelInstanceHandle,
                                                uint64_t requestId = 0);
     void requestViewModelEnums(FileHandle, uint64_t requestId = 0);
@@ -637,6 +676,10 @@ public:
     void requestViewModelInstanceListSize(ViewModelInstanceHandle,
                                           std::string path,
                                           uint64_t requestId = 0);
+
+    void requestViewModelInstanceListClear(ViewModelInstanceHandle,
+                                           std::string path,
+                                           uint64_t requestId = 0);
 
     void requestStateMachineNames(ArtboardHandle, uint64_t requestId = 0);
     void requestDefaultViewModelInfo(ArtboardHandle,
@@ -815,6 +858,7 @@ private:
         bindViewModelInstance,
         runOnce,
         draw,
+        cancelDraw,
         pointerMove,
         pointerDown,
         pointerUp,
@@ -834,7 +878,9 @@ private:
         listViewModelProperties,
         listViewModelPropertyValue,
         getViewModelInstanceViewModelName,
-        getViewModelListSize
+        getViewModelListSize,
+        clearViewModelList,
+        listFileAssets,
     };
 
     enum class Message
@@ -851,8 +897,12 @@ private:
         viewModelPropertiesListed,
         viewModelPropertyValueReceived,
         viewModelListSizeReceived,
+        viewModelListCleared,
         fileLoaded,
         fileDeleted,
+        artboardInstantiated,
+        stateMachineInstantiated,
+        viewModelInstanceInstantiated,
         imageDecoded,
         imageDeleted,
         audioDecoded,
@@ -863,6 +913,7 @@ private:
         viewModelDeleted,
         stateMachineDeleted,
         stateMachineSettled,
+        fileAssetsListed,
         fileError,
         artboardError,
         viewModelError,

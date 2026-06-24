@@ -5,259 +5,110 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char draw_clockwise_path_frag[] = R"===(/*
- * Copyright 2025 Rive
- */
-
-#ifdef EXPORTED_FRAGMENT
-
-PLS_BLOCK_BEGIN
-#ifndef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-PLS_DECL4F(COLOR_PLANE_IDX, colorBuffer);
+const char draw_clockwise_path_frag[] = R"===(#ifdef FB
+J1
+#ifndef K
+r0(Q2,g0);
 #endif
-PLS_DECLUI(CLIP_PLANE_IDX, clipBuffer);
-#ifndef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-PLS_DECL4F_RGB10_A2(SCRATCH_COLOR_PLANE_IDX, blendColorBuffer);
+k1(R2,d0);
+#ifndef K
+Ka(d6,z6);
 #endif
-PLS_DECLUI(COVERAGE_PLANE_IDX, coverageBuffer);
-PLS_BLOCK_END
-
-#ifdef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-PLS_FRAG_COLOR_MAIN(EXPORTED_drawFragmentMain)
+k1(F6,S0);K1
+#ifdef K
+o2(IB)
 #else
-PLS_MAIN(EXPORTED_drawFragmentMain)
+m1(IB)
 #endif
-{
-    VARYING_UNPACK(v_paint, float4);
-#ifdef EXPORTED_DRAW_INTERIOR_TRIANGLES
-    VARYING_UNPACK(v_windingWeight, half);
+{B(i1,g);
+#ifdef DB
+B(j1,d);
 #else
-    VARYING_UNPACK(v_coverages, COVERAGE_TYPE);
-#endif //@DRAW_INTERIOR_TRIANGLES
-    VARYING_UNPACK(v_pathID, half);
-#ifdef EXPORTED_ENABLE_CLIPPING
-    VARYING_UNPACK(v_clipIDs, half2);
+B(I,z2);
 #endif
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-    VARYING_UNPACK(v_clipRect, float4);
+B(z0,d);
+#ifdef O
+B(S1,D);
 #endif
-#ifdef EXPORTED_ENABLE_ADVANCED_BLEND
-    VARYING_UNPACK(v_blendMode, half);
+#ifdef AB
+B(N0,g);
 #endif
-
-    // Calculate fragment coverage before entering the interlock.
-    half fragCoverage =
-#ifdef EXPORTED_DRAW_INTERIOR_TRIANGLES
-        v_windingWeight;
+#ifdef GB
+B(Z1,d);
+#endif
+d o0=
+#ifdef DB
+j1;
 #else
-        find_frag_coverage(v_coverages);
+cb(I);
 #endif
-
-    half4 paintColor;
-    half maxCoverage;
-#if defined(EXPORTED_DRAW_INTERIOR_TRIANGLES) && defined(EXPORTED_BORROWED_COVERAGE_PASS)
-    if (!EXPORTED_BORROWED_COVERAGE_PASS)
+i F0;d H1;
+#if defined(DB)&&defined(WB)
+if(!WB)
 #endif
-    {
-        // Calculate the paint color before entering the interlock.
-        paintColor = find_paint_color(v_paint, 1. FRAGMENT_CONTEXT_UNPACK);
-
-        maxCoverage = 1.;
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-        // Calculate the clip rect before entering the interlock.
-        if (EXPORTED_ENABLE_CLIP_RECT)
-        {
-            half clipRectMin = min_component(cast_float4_to_half4(v_clipRect));
-            maxCoverage = min(clipRectMin, maxCoverage);
-        }
+{F0=M7(i1,1. S2);H1=1.;
+#ifdef AB
+if(AB){d hb=g3(Y4(N0));H1=min(hb,H1);}
 #endif
-    }
-
-    PLS_INTERLOCK_BEGIN;
-
-#if defined(EXPORTED_DRAW_INTERIOR_TRIANGLES) && defined(EXPORTED_BORROWED_COVERAGE_PASS)
-    if (EXPORTED_BORROWED_COVERAGE_PASS)
-    {
-        // Interior triangles with borrowed coverage never write color. They're
-        // also always the first fragment of the path at their pixel, so just
-        // blindly write coverage and move on.
-        PLS_STOREUI(coverageBuffer,
-                    packHalf2x16(make_half2(fragCoverage, v_pathID)));
-#ifndef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-        PLS_PRESERVE_4F(colorBuffer);
+}v2;
+#if defined(DB)&&defined(WB)
+if(WB){f1(S0,packHalf2x16(A2(o0,z0)));
+#ifndef K
+r2(g0);
 #endif
-    }
-    else
-#endif // !@DRAW_INTERIOR_TRIANGLES && @BORROWED_COVERAGE_PASS
-    {
-        half2 coverageData = unpackHalf2x16(PLS_LOADUI(coverageBuffer));
-        half coverageBufferID = coverageData.y;
-        half initialCoverage =
-            coverageBufferID == v_pathID ? coverageData.x : make_half(.0);
-        half finalCoverage =
-#ifndef EXPORTED_DRAW_INTERIOR_TRIANGLES
-            is_stroke(v_coverages) ? max(initialCoverage, fragCoverage) :
+}else
 #endif
-                                   initialCoverage + fragCoverage;
-
-#ifdef EXPORTED_ENABLE_CLIPPING
-        if (EXPORTED_ENABLE_CLIPPING && v_clipIDs.x != .0)
-        {
-            half2 clipData = unpackHalf2x16(PLS_LOADUI(clipBuffer));
-            half clipBufferID = clipData.y;
-            half clip =
-                clipBufferID == v_clipIDs.x ? clipData.x : make_half(.0);
-            maxCoverage = min(clip, maxCoverage);
-        }
+{D N4=unpackHalf2x16(d1(S0));d h9=N4.y;d O4=h9==z0?N4.x:G0(.0);d ee=
+#ifndef DB
+Q5(I)?max(O4,o0):
 #endif
-
-        // Find the coverage delta (c0 -> c1) that this fragment will apply,
-        // where c0 is the coverage with which "paintColor" is already blended
-        // into the framebuffer, and c1 is the total coverage with which we
-        // *want* it to be blended after this fragment. The geometry is ordered
-        // such that if c1 > 0, c1 >= c0 as well.
-        maxCoverage = max(maxCoverage, .0);
-        half c0 = safe_clamp_for_mali(initialCoverage, .0, maxCoverage);
-        half c1 = safe_clamp_for_mali(finalCoverage, .0, maxCoverage);
-
-#ifdef EXPORTED_ENABLE_DITHER
-        half dither;
-        if (EXPORTED_ENABLE_DITHER)
-        {
-            dither = get_dither(_fragCoord.xy,
-                                uniforms.ditherScale,
-                                uniforms.ditherBias);
-        }
+O4+o0;
+#ifdef O
+if(O&&S1.x!=.0){D O0=unpackHalf2x16(d1(d0));d H5=O0.y;d ib=H5==S1.x?O0.x:G0(.0);H1=min(ib,H1);}
 #endif
-
-#ifndef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-        half4 dstColorPremul = PLS_LOAD4F(colorBuffer);
-#ifdef EXPORTED_ENABLE_ADVANCED_BLEND
-        if (EXPORTED_ENABLE_ADVANCED_BLEND)
-        {
-            // Don't bother with advanced blend until coverage becomes > 0. This
-            // way, cutout regions don't pay the cost of advanced blend.
-            if (v_blendMode != cast_uint_to_half(BLEND_SRC_OVER) && c1 != .0)
-            {
-                if (c0 == .0)
-                {
-                    // This is the first fragment of the path to apply the blend
-                    // mode, meaning, the current dstColor is the correct value
-                    // we need to pass to advanced_color_blend(). Calculate the
-                    // color-blended paint color before coverage. Coverage can
-                    // be applied later as a simple src-over operation.
-                    paintColor.xyz =
-                        advanced_color_blend(paintColor.xyz,
-                                             dstColorPremul,
-                                             cast_half_to_ushort(v_blendMode));
-                    // Normally we need to save the color-blended paint color
-                    // for any future fragments at this same pixel because once
-                    // we blend this fragment, the original dstColor will be
-                    // destroyed. However, there are 2 exceptions:
-                    //
-                    // * No need to save the color-blended paint color if we're
-                    // a
-                    //   (clockwise) interior triangle, because those are always
-                    //   guaranteed to be the final fragment of the path at a
-                    //   given pixel.
-                    //
-                    // * No need to save the color-blended paint color once
-                    // coverage
-                    //   is maxed out, out because once it's maxed, any future
-                    //   fragments will effectively be no-ops (since c1 - c0 ==
-                    //   0).
-#ifndef EXPORTED_DRAW_INTERIOR_TRIANGLES
-                    if (c1 < maxCoverage)
-                    {
-                        half3 blendRGBToSave = paintColor.xyz;
-#ifdef EXPORTED_ENABLE_DITHER
-                        if (EXPORTED_ENABLE_DITHER)
-                        {
-                            blendRGBToSave +=
-                                dither * uniforms.ditherConversionToRGB10;
-                        }
+H1=max(H1,.0);d V1=W9(O4,.0,H1);d G1=W9(ee,.0,H1);
+#ifdef JB
+d G5;if(JB){G5=Z9(S.xy,k.y3,k.z3);}
 #endif
-                        PLS_STORE4F(blendColorBuffer,
-                                    make_half4(blendRGBToSave, 0.0));
-                    }
+#ifndef K
+i L1=H0(g0);
+#ifdef GB
+if(GB){if(Z1!=V5(M5)&&G1!=.0){if(V1==.0){F0.xyz=Q4(F0.xyz,L1,W5(Z1));
+#ifndef DB
+if(G1<H1){r P7=F0.xyz;
+#ifdef JB
+if(JB){P7+=G5*k.gd;}
 #endif
-                }
-                else
-                {
-                    // This is not the first fragment of the path to apply the
-                    // blend mode, meaning, the current dstColor is no longer
-                    // the correct value we need to pass to
-                    // advanced_color_blend(). Instead, the first fragment saved
-                    // its result of advanced_color_blend() to the
-                    // blendColorBuffer, which we can pull back up and use to
-                    // apply our fragment's coverage contribution.
-                    paintColor.xyz = PLS_LOAD4F(blendColorBuffer).xyz;
-                    PLS_PRESERVE_4F(blendColorBuffer);
-                }
-            }
-            // GENERATE_PREMULTIPLIED_PAINT_COLORS is false when
-            // @ENABLE_ADVANCED_BLEND is defined because advanced blend needs
-            // unmultiplied colors. Premultiply alpha now.
-            paintColor.xyz *= paintColor.w;
-        }
-#endif // @ENABLE_ADVANCED_BLEND
-#endif // @FIXED_FUNCTION_COLOR_OUTPUT
-
-        // Emit a paint color whose post-src-over-blend result is algebraically
-        // equivalent to applying the c0 -> c1 coverage delta.
-        paintColor *= incremental_clockwise_coverage(c0, c1, paintColor.w);
-#ifdef EXPORTED_ENABLE_DITHER
-        if (EXPORTED_ENABLE_DITHER)
-        {
-            paintColor.xyz += dither;
-        }
+v0(z6,B0(P7,0.0));}
 #endif
-#ifndef EXPORTED_DRAW_INTERIOR_TRIANGLES
-        // Update the coverage buffer with our final value if we aren't an
-        // interior triangle, because another fragment from this same path might
-        // come along at this pixel. The only exception is if we're src-over and
-        // fully opaque, because at that point the next fragment will
-        // effectively be a no-op (since any color blended with itself is a
-        // no-op).
-#ifdef EXPORTED_ENABLE_ADVANCED_BLEND
-        // We can't skip the write for advanced blends either because they use
-        // the ID in the coverage buffer to detect the first fragment of the
-        // path for dst reads.
-#define COVERAGE_UPDATE_OPTIONAL                                                \
-    (!EXPORTED_ENABLE_ADVANCED_BLEND ||                                                \
-     v_blendMode == cast_uint_to_half(BLEND_SRC_OVER)) &&                      \
-        paintColor.w >= 1.
+}else{F0.xyz=H0(z6).xyz;r2(z6);}}F0.xyz*=F0.w;}
+#endif
+#endif
+F0*=K8(V1,G1,F0.w);
+#ifdef JB
+if(JB){F0.xyz+=G5;}
+#endif
+#ifndef DB
+#ifdef GB
+#define fe (!GB||Z1==V5(M5))&&F0.w>=1.
 #else
-#define COVERAGE_UPDATE_OPTIONAL  paintColor.w >= 1.
+#define fe F0.w>=1.
 #endif
-        PLS_STOREUI_OPTIONAL_IF(
-            COVERAGE_UPDATE_OPTIONAL,
-            coverageBuffer,
-            packHalf2x16(make_half2(finalCoverage, v_pathID)));
-#else // -> @DRAW_INTERIOR_TRIANGLES
-        PLS_PRESERVE_UI(coverageBuffer);
-#endif
-
-#ifndef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-        PLS_STORE4F_OPTIONAL_IF(paintColor.w == .0,
-                                colorBuffer,
-                                dstColorPremul * (1. - paintColor.w) +
-                                    paintColor);
-#endif
-    }
-
-    PLS_PRESERVE_UI(clipBuffer);
-    PLS_INTERLOCK_END;
-
-#ifdef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-    _fragColor = paintColor;
-    EMIT_PLS_AND_FRAG_COLOR
+td(fe,S0,packHalf2x16(A2(ee,z0)));
 #else
-    EMIT_PLS;
+Y1(S0);
+#endif
+#ifndef K
+sd(F0.w==.0,g0,L1*(1.-F0.w)+F0);
+#endif
+}Y1(d0);w2;
+#ifdef K
+l1=F0;l3
+#else
+U1;
 #endif
 }
-
-#endif // @FRAGMENT
+#endif
 )===";
 } // namespace glsl
 } // namespace gpu

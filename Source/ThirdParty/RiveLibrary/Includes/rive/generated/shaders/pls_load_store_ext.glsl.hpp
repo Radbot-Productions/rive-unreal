@@ -5,111 +5,71 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char pls_load_store_ext[] = R"===(/*
- * Copyright 2022 Rive
- */
-
-// The EXT_shader_pixel_local_storage extension does not provide a mechanism to
-// load, store, or clear pixel local storage contents. This shader performs
-// custom load, store, and clear operations via fullscreen draws.
-
-#ifdef EXPORTED_VERTEX
-void main()
-{
-    // [-1, -1] .. [+1, +1]
-    gl_Position = vec4(mix(vec2(-1, 1),
-                           vec2(1, -1),
-                           equal(gl_VertexID & ivec2(1, 2), ivec2(0))),
-                       0,
-                       1);
-#ifdef EXPORTED_POST_INVERT_Y
-    gl_Position.y = -gl_Position.y;
+const char pls_load_store_ext[] = R"===(#ifdef CB
+void main(){gl_Position=vec4(mix(vec2(-1,1),vec2(1,-1),equal(gl_VertexID&ivec2(1,2),ivec2(0))),0,1);
+#ifdef JC
+gl_Position.y=-gl_Position.y;
 #endif
 }
 #endif
-
-#ifdef EXPORTED_FRAGMENT
-
-#extension GL_EXT_shader_pixel_local_storage : require
+#ifdef FB
+#extension GL_EXT_shader_pixel_local_storage:require
 #ifdef GL_ARM_shader_framebuffer_fetch
-#extension GL_ARM_shader_framebuffer_fetch : require
+#extension GL_ARM_shader_framebuffer_fetch:require
 #else
-#extension GL_EXT_shader_framebuffer_fetch : require
+#extension GL_EXT_shader_framebuffer_fetch:require
 #endif
-
-#ifdef EXPORTED_CLEAR_COLOR
-#if __VERSION__ >= 310
-layout(binding = 0, std140) uniform ClearColor { uniform highp vec4 value; }
-clearColor;
+#ifdef JE
+#if __VERSION__>=310
+layout(binding=0,std140)uniform mi{uniform highp vec4 Eg;}Fg;
 #else
-uniform mediump vec4 EXPORTED_clearColor;
+uniform mediump vec4 KE;
 #endif
 #endif
-
 #ifdef GL_EXT_shader_pixel_local_storage
-
-#ifdef EXPORTED_STORE_COLOR
-__pixel_local_inEXT PLS
+#ifdef SD
+__pixel_local_inEXT n1
 #else
-__pixel_local_outEXT PLS
+__pixel_local_outEXT n1
 #endif
-{
-    layout(rgba8) mediump vec4 colorBuffer;
-    layout(r32ui) highp uint clipBuffer;
-    layout(rgba8) mediump vec4 scratchColorBuffer;
-    layout(r32ui) highp uint coverageCountBuffer;
-};
-
+{layout(rgba8)mediump vec4 g0;layout(r32ui)highp uint d0;layout(rgba8)mediump vec4 g4;layout(r32ui)highp uint H7;};
 #ifndef GL_ARM_shader_framebuffer_fetch
-#ifdef EXPORTED_LOAD_COLOR
-layout(location = 0) inout mediump vec4 fragColor;
+#ifdef LE
+layout(location=0)inout mediump vec4 Na;
 #endif
 #endif
-
-#ifdef EXPORTED_STORE_COLOR
-layout(location = 0) out mediump vec4 fragColor;
+#ifdef SD
+layout(location=0)out mediump vec4 Na;
 #endif
-
-void main()
-{
-#ifdef EXPORTED_CLEAR_COLOR
-#if __VERSION__ >= 310
-    colorBuffer = clearColor.value;
+void main(){
+#ifdef JE
+#if __VERSION__>=310
+g0=Fg.Eg;
 #else
-    colorBuffer = EXPORTED_clearColor;
+g0=KE;
 #endif
 #endif
-
-#ifdef EXPORTED_LOAD_COLOR
+#ifdef LE
 #ifdef GL_ARM_shader_framebuffer_fetch
-    colorBuffer = gl_LastFragColorARM;
+g0=gl_LastFragColorARM;
 #else
-    colorBuffer = fragColor;
+g0=Na;
 #endif
 #endif
-
-#ifdef EXPORTED_CLEAR_COVERAGE
-    coverageCountBuffer = 0u;
+#ifdef TD
+H7=0u;
 #endif
-
-#ifdef EXPORTED_CLEAR_CLIP
-    clipBuffer = 0u;
+#ifdef JF
+d0=0u;
 #endif
-
-#ifdef EXPORTED_STORE_COLOR
-    fragColor = colorBuffer;
+#ifdef SD
+Na=g0;
 #endif
 }
-
 #else
-
-// This shader is being parsed by WebGPU for introspection purposes.
-layout(location = 0) out mediump vec4 unused;
-void main() { unused = vec4(0, 1, 0, 1); }
-
-#endif // GL_EXT_shader_pixel_local_storage
-
-#endif // FRAGMENT
+layout(location=0)out mediump vec4 Gg;void main(){Gg=vec4(0,1,0,1);}
+#endif
+#endif
 )===";
 } // namespace glsl
 } // namespace gpu

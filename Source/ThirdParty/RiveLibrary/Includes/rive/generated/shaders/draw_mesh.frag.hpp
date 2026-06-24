@@ -5,218 +5,119 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char draw_mesh_frag[] = R"===(/*
- * Copyright 2023 Rive
- */
-
-#ifdef EXPORTED_FRAGMENT
-
-// This is a basic fragment shader for non-msaa, non-path objects, e.g., image
-// meshes, atlas blits.
-// These objects are simple in that they can write their fragments out directly,
-// without having to cooperate with overlapping fragments to work out coverage.
-
-#if (defined(EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT) && !defined(EXPORTED_ENABLE_CLIPPING)) ||   \
-    defined(EXPORTED_RENDER_MODE_CLOCKWISE_ATOMIC)
-// @FIXED_FUNCTION_COLOR_OUTPUT without clipping can skip the interlock.
-#undef NEEDS_INTERLOCK
+const char draw_mesh_frag[] = R"===(#ifdef FB
+#if(defined(K)&&!defined(O))||defined(QB)
+#undef kb
 #else
-#define NEEDS_INTERLOCK
+#define kb
 #endif
-
-PLS_BLOCK_BEGIN
-#ifndef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-PLS_DECL4F(COLOR_PLANE_IDX, colorBuffer);
+J1
+#ifndef K
+r0(Q2,g0);
 #endif
-#ifndef EXPORTED_RENDER_MODE_CLOCKWISE_ATOMIC
-PLS_DECLUI(CLIP_PLANE_IDX, clipBuffer);
-#ifndef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-PLS_DECL4F(SCRATCH_COLOR_PLANE_IDX, scratchColorBuffer);
+#ifndef QB
+k1(R2,d0);
+#ifndef K
+r0(d6,g4);
 #endif
-PLS_DECLUI(COVERAGE_PLANE_IDX, coverageBuffer);
-#else // @RENDER_MODE_CLOCKWISE_ATOMIC
-PLS_DECL4F(CLIP_PLANE_IDX, clipBuffer);
-#endif
-PLS_BLOCK_END
-
-// ATLAS_BLIT includes draw_path_common.glsl, which declares the textures &
-// samplers, so we only need to declare these for image meshes.
-#ifdef EXPORTED_DRAW_IMAGE_MESH
-FRAG_TEXTURE_BLOCK_BEGIN
-TEXTURE_RGBA8(PER_DRAW_BINDINGS_SET, IMAGE_TEXTURE_IDX, EXPORTED_imageTexture);
-FRAG_TEXTURE_BLOCK_END
-
-DYNAMIC_SAMPLER_BLOCK_BEGIN
-SAMPLER_DYNAMIC(PER_DRAW_BINDINGS_SET, IMAGE_SAMPLER_IDX, imageSampler)
-DYNAMIC_SAMPLER_BLOCK_END
-
-FRAG_STORAGE_BUFFER_BLOCK_BEGIN
-FRAG_STORAGE_BUFFER_BLOCK_END
-#endif // @DRAW_IMAGE_MESH
-
-#ifdef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-#ifdef EXPORTED_DRAW_IMAGE_MESH
-PLS_FRAG_COLOR_MAIN_WITH_IMAGE_UNIFORMS(EXPORTED_drawFragmentMain)
+k1(F6,S0);
 #else
-PLS_FRAG_COLOR_MAIN(EXPORTED_drawFragmentMain)
+r0(R2,d0);
+#endif
+K1
+#ifdef LB
+B3 X2(Z4,T3,AC);C3 a5 U3(R5)c5 N3 O3
+#endif
+#ifdef K
+#ifdef LB
+r4(IB)
+#else
+o2(IB)
 #endif
 #else
-#ifdef EXPORTED_DRAW_IMAGE_MESH
-PLS_MAIN_WITH_IMAGE_UNIFORMS(EXPORTED_drawFragmentMain)
+#ifdef LB
+O5(IB)
 #else
-PLS_MAIN(EXPORTED_drawFragmentMain)
+m1(IB)
 #endif
 #endif
 {
-#ifdef EXPORTED_ATLAS_BLIT
-    VARYING_UNPACK(v_paint, float4);
-    VARYING_UNPACK(v_atlasCoord, float2);
+#ifdef EB
+B(i1,g);B(C2,c);
 #endif
-#ifdef EXPORTED_DRAW_IMAGE_MESH
-    VARYING_UNPACK(v_texCoord, float2);
+#ifdef LB
+B(U0,c);
 #endif
-#ifdef EXPORTED_ENABLE_CLIPPING
-    VARYING_UNPACK(v_clipID, half);
+#ifdef O
+B(I3,d);
 #endif
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-    VARYING_UNPACK(v_clipRect, float4);
+#ifdef AB
+B(N0,g);
 #endif
-#if defined(EXPORTED_ATLAS_BLIT) && defined(EXPORTED_ENABLE_ADVANCED_BLEND)
-    VARYING_UNPACK(v_blendMode, half);
+#if defined(EB)&&defined(GB)
+B(Z1,d);
 #endif
-
-#ifdef EXPORTED_ATLAS_BLIT
-    half4 color = find_paint_color(v_paint, 1. FRAGMENT_CONTEXT_UNPACK);
-    half coverage = clamp(
-        TEXTURE_SAMPLE_LOD(EXPORTED_atlasTexture, atlasSampler, v_atlasCoord, .0).x,
-        make_half(.0),
-        make_half(1.));
+#ifdef EB
+i j=M7(i1,1. S2);d n=clamp(m2(UC,I9,C2,.0).x,G0(.0),G0(1.));
 #endif
-
-#ifdef EXPORTED_DRAW_IMAGE_MESH
-    half4 color = TEXTURE_SAMPLE_DYNAMIC_LODBIAS(EXPORTED_imageTexture,
-                                                 imageSampler,
-                                                 v_texCoord,
-                                                 uniforms.mipMapLODBias);
-    half coverage = 1.;
+#ifdef LB
+i j=y7(AC,R5,U0,k.fd);d n=1.;
 #endif
-
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-    // Calculate the clip rect before entering the interlock.
-    if (EXPORTED_ENABLE_CLIP_RECT)
-    {
-        half clipRectCoverage =
-            max(min_component(cast_float4_to_half4(v_clipRect)), make_half(.0));
-        coverage = min(clipRectCoverage, coverage);
-    }
+#ifdef AB
+if(AB){d U4=max(g3(Y4(N0)),G0(.0));n=min(U4,n);}
 #endif
-
-#ifdef NEEDS_INTERLOCK
-    PLS_INTERLOCK_BEGIN;
+#ifdef kb
+v2;
 #endif
-
-#if defined(EXPORTED_ENABLE_CLIPPING) && !defined(EXPORTED_RENDER_MODE_CLOCKWISE_ATOMIC)
-    if (EXPORTED_ENABLE_CLIPPING && v_clipID != .0)
-    {
-        half2 clipData = unpackHalf2x16(PLS_LOADUI(clipBuffer));
-        half clipContentID = clipData.y;
-        half clipCoverage =
-            max(clipContentID == v_clipID ? clipData.x : make_half(.0),
-                make_half(.0));
-        coverage = min(coverage, clipCoverage);
-    }
-#endif
-
-#ifdef EXPORTED_DRAW_IMAGE_MESH
-    // Apply opacity after clipping.
-    coverage *= imageDrawUniforms.opacity;
-#endif
-
-#if !defined(EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT)
-    half4 dstColorPremul = PLS_LOAD4F(colorBuffer);
-#ifdef EXPORTED_ENABLE_ADVANCED_BLEND
-    if (EXPORTED_ENABLE_ADVANCED_BLEND)
-    {
-#ifdef EXPORTED_ATLAS_BLIT
-        // GENERATE_PREMULTIPLIED_PAINT_COLORS is false in this case for
-        // find_paint_color() because advanced blend needs unmultiplied colors.
-        ushort blendMode = cast_half_to_ushort(v_blendMode);
-#endif
-
-#ifdef EXPORTED_DRAW_IMAGE_MESH
-        // Unmultiply the image for advanced blend. Images are always
-        // premultiplied so that the filtering works correctly.
-        // TODO: This unmultiply technically isn't necessary with srcOver blend.
-        // We may want to experiment with dynamically not premultiplying here
-        // and in find_paint_color() when the blend mode is srcOver.
-        color.xyz = unmultiply_rgb(color);
-        ushort blendMode = cast_uint_to_ushort(imageDrawUniforms.blendMode);
-#endif
-
-        if (blendMode != BLEND_SRC_OVER)
-        {
-            color.xyz =
-                advanced_color_blend(color.xyz, dstColorPremul, blendMode);
-        }
-        // Premultiply alpha now.
-        color.w *= coverage;
-        color.xyz *= color.w;
-    }
-    else
-#endif // @ENABLE_ADVANCED_BLEND
-    {
-        color *= coverage;
-    }
-
-    // Certain platforms give us less control of the format of what we are
-    // rendering too. Specifically, we are auto converted from linear -> sRGB on
-    // render target writes in unreal. In those cases we made need to end up in
-    // linear color space
-#ifdef EXPORTED_NEEDS_GAMMA_CORRECTION
-    if (EXPORTED_NEEDS_GAMMA_CORRECTION)
-    {
-        color = gamma_to_linear(color);
-    }
-#endif
-
-    color.xyz = add_dither(color.xyz,
-                           _fragCoord.xy,
-                           uniforms.ditherScale,
-                           uniforms.ditherBias);
-
-#ifndef EXPORTED_RENDER_MODE_CLOCKWISE_ATOMIC
-    color = dstColorPremul * (1. - color.w) + color;
-#endif
-
-    PLS_STORE4F(colorBuffer, color);
-#endif // !@FIXED_FUNCTION_COLOR_OUTPUT
-
-#ifndef EXPORTED_RENDER_MODE_CLOCKWISE_ATOMIC
-    PLS_PRESERVE_UI(clipBuffer);
-    PLS_PRESERVE_UI(coverageBuffer);
+#if defined(O)
+if(O&&I3!=.0){d r3;
+#ifndef QB
+D O0=unpackHalf2x16(d1(d0));d A6=O0.y;r3=max(A6==I3?O0.x:G0(.0),G0(.0));
 #else
-    // Since blend is enabled, storing 0 to the clip will ensure it remains
-    // unchanged.
-    PLS_STORE4F(clipBuffer, make_half4(.0));
+r3=H0(d0).x;
 #endif
-#ifdef NEEDS_INTERLOCK
-    PLS_INTERLOCK_END;
+r3=max(r3,G0(.0));n=min(n,r3);}
 #endif
-
-#ifdef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-    color = (color * coverage);
-    color.xyz = add_dither(color.xyz,
-                           _fragCoord.xy,
-                           uniforms.ditherScale,
-                           uniforms.ditherBias);
-    _fragColor = color;
-    EMIT_PLS_AND_FRAG_COLOR
+#ifdef LB
+n*=A0.x4;
+#endif
+#if!defined(K)
+i L1=H0(g0);
+#ifdef GB
+if(GB){
+#ifdef EB
+X n2=W5(Z1);
+#endif
+#ifdef LB
+j.xyz=B6(j);X n2=i2(A0.n2);
+#endif
+if(n2!=M5){j.xyz=Q4(j.xyz,L1,n2);}j.w*=n;j.xyz*=j.w;}else
+#endif
+{j*=n;}
+#ifdef UB
+if(UB){j=k3(j);}
+#endif
+j.xyz=Q3(j.xyz,S.xy,k.y3,k.z3);
+#ifndef QB
+j=L1*(1.-j.w)+j;
+#endif
+v0(g0,j);
+#endif
+#ifndef QB
+Y1(d0);Y1(S0);
 #else
-    EMIT_PLS;
+v0(d0,B0(.0));
+#endif
+#ifdef kb
+w2;
+#endif
+#ifdef K
+j=(j*n);j.xyz=Q3(j.xyz,S.xy,k.y3,k.z3);l1=j;l3
+#else
+U1;
 #endif
 }
-
-#endif // @FRAGMENT
+#endif
 )===";
 } // namespace glsl
 } // namespace gpu

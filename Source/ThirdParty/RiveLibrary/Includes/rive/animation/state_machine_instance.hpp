@@ -5,7 +5,9 @@
 #include <stddef.h>
 #include <vector>
 #include <unordered_map>
+#include "rive/animation/gamepad_listener_group.hpp"
 #include "rive/animation/keyboard_listener_group.hpp"
+#include "rive/animation/semantic_listener_group.hpp"
 #include "rive/animation/linear_animation_instance.hpp"
 #include "rive/animation/state_instance.hpp"
 #include "rive/animation/state_transition.hpp"
@@ -18,6 +20,8 @@
 #include "rive/data_bind/data_bind_container.hpp"
 #include "rive/input/focusable.hpp"
 #include "rive/input/focus_manager.hpp"
+#include "rive/semantic/semantic_manager.hpp"
+#include "rive/input/gamepad_snapshot.hpp"
 
 namespace rive
 {
@@ -46,6 +50,7 @@ class BindableProperty;
 class HitDrawable;
 class ListenerViewModel;
 class ScriptedListenerAction;
+class ScriptedDrawable;
 typedef void (*DataBindChanged)();
 
 #ifdef WITH_RIVE_TOOLS
@@ -210,6 +215,10 @@ public:
         const StateTransition* transition,
         uint32_t propertyKey) const;
     bool hasListeners() { return m_hitComponents.size() > 0; }
+    bool hasFocusNodes();
+    bool focusNext();
+    bool focusPrevious();
+    void clearFocus();
     void clearDataContext();
     void relinkDataContext() override;
     void rebuildDataBind(DataBind*) override;
@@ -218,6 +227,14 @@ public:
 
     /// Queue a focus event for deferred execution during advance().
     void queueFocusEvent(FocusListenerGroup* group, bool isFocus);
+
+    /// Queue a semantic event for deferred execution during advance().
+    void queueSemanticEvent(SemanticListenerGroup* group,
+                            SemanticActionType actionType);
+
+    /// Fire a semantic action on the SemanticData with the given node ID.
+    void fireSemanticAction(uint32_t semanticNodeId,
+                            SemanticActionType actionType);
 
     /// Get the focus manager for this state machine instance.
     /// Returns the external focus manager if set, otherwise the internal one.
@@ -238,6 +255,21 @@ public:
     /// internal manager regardless of whether an external one is set.
     FocusManager* internalFocusManager() { return &m_focusManager; }
 
+    /// Parses embedder gamepad batch bytes (same format as JS
+    /// `GAMEPAD_BATCH_VERSION` in `registerGamepadInteractions`). Invokes
+    /// `focusManager()->gamepadDispatch` for each record. Returns false if the
+    /// buffer is invalid or truncated.
+    bool submitGamepadsFromBuffer(const uint8_t* data, size_t length);
+
+    /// Forward `invocation` to every `ScriptedDrawable` in this state machine
+    /// whose script declares a gamepad handler (`wantsGamePad()`), skipping
+    /// `alreadyDispatched` (typically the focus-tree recipient) so a script
+    /// is never invoked twice for the same event. Used by gamepad dispatch
+    /// after the focus bubble so non-focused scripts can still react.
+    HitResult broadcastGamepadToScriptedDrawables(
+        const ListenerInvocation& invocation,
+        ScriptedDrawable* alreadyDispatched);
+
     /// Set an external focus manager to use instead of the internal one.
     /// This is used when a nested artboard should share focus with its parent.
     /// If the focus tree was already built with a different manager, it will
@@ -246,6 +278,44 @@ public:
 
     /// Set focus to a specific FocusData's node.
     void setFocus(FocusData* focusData);
+
+    /// Snapshot of the current focus state. Designed for host polling (e.g.
+    /// deciding whether to show a soft keyboard / IME). Cheap to query;
+    /// future fields (e.g. keyboard type) will be added additively.
+    struct FocusState
+    {
+        /// True if any element currently holds focus in this state machine's
+        /// active focus manager (internal or external).
+        bool hasFocus = false;
+        /// True if the focused element accepts keyboard input — i.e. a
+        /// TextInput, or a FocusData target with registered key/text-input
+        /// listeners. False when nothing is focused.
+        bool expectsKeyboardInput = false;
+    };
+    FocusState focusState() const;
+
+    /// Get the semantic manager for this state machine instance.
+    /// Returns the external manager if set, otherwise the internal one.
+    /// Returns nullptr if semantics has not been enabled.
+    SemanticManager* semanticManager() const
+    {
+        return m_externalSemanticManager ? m_externalSemanticManager
+                                         : m_semanticManager.get();
+    }
+
+    /// Enable semantics for this state machine instance. Creates the
+    /// internal SemanticManager (if no external one was set) and builds
+    /// the semantic tree. This is a no-op if semantics is already enabled.
+    void enableSemantics();
+
+    /// Set an external semantic manager to use instead of the internal one.
+    /// Used when a nested artboard should share the parent's semantic tree.
+    /// Rebuilds the semantic tree with the new manager if already built.
+    /// @param parentNode If provided, the rebuilt tree is attached under it;
+    /// nullptr attaches at the manager root.
+    void setExternalSemanticManager(SemanticManager* manager,
+                                    rcp<SemanticNode> parentNode = nullptr);
+
 #ifdef TESTING
     size_t hitComponentsCount() { return m_hitComponents.size(); };
     HitComponent* hitComponent(size_t index)
@@ -303,6 +373,20 @@ private:
     std::vector<std::unique_ptr<FocusListenerGroup>> m_focusListenerGroups;
     std::vector<std::unique_ptr<KeyboardListenerGroup>>
         m_keyboardListenerGroups;
+    std::vector<std::unique_ptr<GamepadListenerGroup>> m_gamepadListenerGroups;
+    /// Non-owning back-references to every `ScriptedDrawable` whose script
+    /// declares a gamepad handler. Populated once at init from the artboard
+    /// (which outlives this state machine) and walked by
+    /// `broadcastGamepadToScriptedDrawables` so events reach scripts that are
+    /// not on the focus chain. Mirrors how `m_hitComponents` lets every
+    /// pointer-aware drawable react regardless of focus.
+    std::vector<ScriptedDrawable*> m_gamepadScriptedDrawables;
+    /// Latest embedder gamepad state for `submitGamepadsFromBuffer` (WASM/JS).
+    std::unordered_map<int, GamepadSnapshot> m_embedderGamepads;
+
+    // Semantic management
+    std::unique_ptr<SemanticManager> m_semanticManager;
+    SemanticManager* m_externalSemanticManager = nullptr;
 
     // Queued focus events for deferred processing
     struct QueuedFocusEvent
@@ -312,6 +396,17 @@ private:
     };
     std::vector<QueuedFocusEvent> m_queuedFocusEvents;
     void processFocusEvents();
+
+    // Semantic listener groups and queued events
+    std::vector<std::unique_ptr<SemanticListenerGroup>>
+        m_semanticListenerGroups;
+    struct QueuedSemanticEvent
+    {
+        SemanticListenerGroup* group;
+        SemanticActionType actionType;
+    };
+    std::vector<QueuedSemanticEvent> m_queuedSemanticEvents;
+    void processSemanticEvents();
 
 #ifdef WITH_RIVE_TOOLS
 public:
@@ -338,6 +433,9 @@ public:
                                    bool canHit,
                                    float timeStamp = 0,
                                    int pointerId = 0) = 0;
+    virtual HitResult processGamepadInvocation(
+        const ListenerInvocation& invocation,
+        ScriptedDrawable* alreadyDispatched) = 0;
     virtual void prepareEvent(Vec2D position,
                               ListenerType hitType,
                               int pointerId) = 0;

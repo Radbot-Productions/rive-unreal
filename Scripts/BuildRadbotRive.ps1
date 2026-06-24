@@ -6,11 +6,15 @@ param(
     [switch]$SkipRuntimeBuild,
     [switch]$SkipUnrealBuild,
     [switch]$CleanRuntime,
+    [switch]$BootstrapWin64,
     [switch]$ReleaseOnly,
     [switch]$DebugOnly,
     [switch]$SyncHeadersAndShaders,
     [string]$RiveLibrariesSourceDir = "",
     [switch]$AllowUnverifiedRiveLibraries,
+    [switch]$RequireExactRiveLibraryHashes,
+    [switch]$StrictRiveLibrarySet,
+    [switch]$WriteRiveLibraryManifest,
     [switch]$SkipRiveLibraryValidation,
     [switch]$SkipPluginBinaryClean
 )
@@ -189,7 +193,10 @@ function Test-RiveLibraries {
         [string]$ManifestPath,
 
         [Parameter(Mandatory = $true)]
-        [bool]$CheckHashes
+        [bool]$CheckHashes,
+
+        [Parameter(Mandatory = $true)]
+        [bool]$StrictLibrarySet
     )
 
     if (-not (Test-Path -LiteralPath $ManifestPath)) {
@@ -235,7 +242,12 @@ function Test-RiveLibraries {
 
     foreach ($actualName in ($actual.Keys | Sort-Object)) {
         if (-not $expected.ContainsKey($actualName)) {
-            $errors.Add("unexpected $actualName")
+            if ($StrictLibrarySet) {
+                $errors.Add("unexpected $actualName")
+            }
+            else {
+                Write-Warning "Ignoring extra Rive library not listed in manifest: $actualName"
+            }
         }
     }
 
@@ -245,6 +257,41 @@ function Test-RiveLibraries {
     }
 
     Write-Host "Verified $($expected.Count) Rive Win64 libraries in $LibrariesDirectory"
+}
+
+function Write-RiveLibrariesManifest {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$LibrariesDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ManifestPath
+    )
+
+    if (-not (Test-Path -LiteralPath $LibrariesDirectory)) {
+        throw "Rive library directory does not exist: $LibrariesDirectory"
+    }
+
+    $libraries = Get-ChildItem -LiteralPath $LibrariesDirectory -Filter *.lib -File | Sort-Object Name
+    if ($libraries.Count -eq 0) {
+        throw "No .lib files found in '$LibrariesDirectory'."
+    }
+
+    $manifest = [ordered]@{
+        description = "Radbot Rive Win64 static library fingerprint generated from Plugins/Rive/submodules/rive-runtime. Libraries are intentionally not committed; run BuildRadbotRive.ps1 -BootstrapWin64 to recreate them."
+        libraries = @(
+            foreach ($library in $libraries) {
+                [ordered]@{
+                    name = $library.Name
+                    size = [int64]$library.Length
+                    sha256 = (Get-FileHash -LiteralPath $library.FullName -Algorithm SHA256).Hash
+                }
+            }
+        )
+    }
+
+    $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ManifestPath -Encoding UTF8
+    Write-Host "Wrote Rive Win64 library manifest: $ManifestPath"
 }
 
 function Clear-RivePluginBuildProducts {
@@ -257,8 +304,13 @@ function Clear-RivePluginBuildProducts {
         $path = Join-Path $PluginRoot $relativePath
         if (Test-Path -LiteralPath $path) {
             Assert-PathUnderDirectory -Path $path -Directory $PluginRoot
-            Remove-Item -LiteralPath $path -Recurse -Force
-            Write-Host "Removed stale Rive build product: $path"
+            try {
+                Remove-Item -LiteralPath $path -Recurse -Force
+                Write-Host "Removed stale Rive build product: $path"
+            }
+            catch {
+                Write-Warning "Could not remove stale Rive build product '$path'. Close Unreal Editor or any process locking Rive DLLs before the Unreal build phase. $($_.Exception.Message)"
+            }
         }
     }
 }
@@ -295,10 +347,53 @@ function Sync-RiveHeadersAndShaders {
 
     $includesDestination = Join-Path $PluginRoot "Source\ThirdParty\RiveLibrary\Includes"
 
+    Assert-PathUnderDirectory -Path $includesDestination -Directory $PluginRoot
+    if (Test-Path -LiteralPath $includesDestination) {
+        Remove-Item -LiteralPath $includesDestination -Recurse -Force
+    }
+
     New-Item -ItemType Directory -Force -Path $includesDestination | Out-Null
     Copy-Item -Path (Join-Path $RuntimeRoot "include\*") -Destination $includesDestination -Recurse -Force
     Copy-Item -Path (Join-Path $RuntimeRoot "renderer\include\*") -Destination $includesDestination -Recurse -Force
     Copy-Item -Path (Join-Path $RuntimeRoot "decoders\include\*") -Destination $includesDestination -Recurse -Force
+
+    $generatedIncludes = Join-Path $RuntimeRoot "out\windows\release\include"
+    if (Test-Path -LiteralPath $generatedIncludes) {
+        $generatedSource = Join-Path $generatedIncludes "generated"
+        if (Test-Path -LiteralPath $generatedSource) {
+            $generatedDestination = Join-Path $includesDestination "rive\generated"
+            New-Item -ItemType Directory -Force -Path $generatedDestination | Out-Null
+            Copy-Item -Path (Join-Path $generatedSource "*") -Destination $generatedDestination -Recurse -Force
+        }
+
+        $libPngSource = Join-Path $generatedIncludes "libpng"
+        if (Test-Path -LiteralPath $libPngSource) {
+            $libPngDestination = Join-Path $includesDestination "libpng"
+            New-Item -ItemType Directory -Force -Path $libPngDestination | Out-Null
+            Copy-Item -Path (Join-Path $libPngSource "*") -Destination $libPngDestination -Recurse -Force
+        }
+    }
+
+    $shaderSource = Join-Path $RuntimeRoot "renderer\src\shaders"
+    if (Test-Path -LiteralPath $shaderSource) {
+        $shaderDestination = Join-Path $includesDestination "rive\shaders"
+        New-Item -ItemType Directory -Force -Path $shaderDestination | Out-Null
+        foreach ($shaderName in @("constants.glsl", "flush_uniforms.glsl", "image_draw_uniforms.glsl")) {
+            $shaderPath = Join-Path $shaderSource $shaderName
+            if (Test-Path -LiteralPath $shaderPath) {
+                Copy-Item -LiteralPath $shaderPath -Destination (Join-Path $shaderDestination $shaderName) -Force
+            }
+        }
+    }
+
+    $mathTypesPath = Join-Path $includesDestination "rive\math\math_types.hpp"
+    if (Test-Path -LiteralPath $mathTypesPath) {
+        $content = Get-Content -LiteralPath $mathTypesPath -Raw
+        if ($content -notmatch "#ifdef PI\s*`r?`n#undef PI") {
+            $content = $content -replace "namespace math\s*\{", "#ifdef PI`r`n#undef PI`r`n#endif`r`n`r`nnamespace math`r`n{"
+            Set-Content -LiteralPath $mathTypesPath -Value $content -Encoding UTF8
+        }
+    }
 }
 
 function Resolve-RiveShellDirectory {
@@ -394,6 +489,16 @@ if ($ReleaseOnly -and $DebugOnly) {
     throw "Use either -ReleaseOnly or -DebugOnly, not both."
 }
 
+if ($BootstrapWin64) {
+    $Platform = "Win64"
+    $CleanRuntime = $true
+    $SyncHeadersAndShaders = $true
+    $SkipUnrealBuild = $true
+    $RequireExactRiveLibraryHashes = $true
+    $StrictRiveLibrarySet = $true
+    $WriteRiveLibraryManifest = $true
+}
+
 $pluginRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
 if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
     $ProjectRoot = Find-ProjectRoot -StartPath $pluginRoot
@@ -408,7 +513,7 @@ $librariesManifest = Join-Path $PSScriptRoot "RiveWin64Libraries.manifest.json"
 $didHydrateRiveLibraries = $false
 
 if (-not $SkipSubmoduleUpdate) {
-    Invoke-Checked -FilePath "git" -Arguments @("-C", $ProjectRoot, "submodule", "update", "--init", "--recursive", "--", "Plugins/Rive/submodules/rive-runtime")
+    Invoke-Checked -FilePath "git" -Arguments @("-C", $pluginRoot, "submodule", "update", "--init", "--recursive", "--", "submodules/rive-runtime")
 }
 
 if (-not (Test-Path -LiteralPath (Join-Path $runtimeRoot "build\build_rive.ps1"))) {
@@ -482,16 +587,24 @@ else {
     Write-Host "Using existing Rive Win64 libraries in $librariesRoot"
 }
 
+if ($SyncHeadersAndShaders) {
+    Sync-RiveHeadersAndShaders -RuntimeRoot $runtimeRoot -PluginRoot $pluginRoot
+}
+
+if ($WriteRiveLibraryManifest) {
+    Write-RiveLibrariesManifest -LibrariesDirectory $librariesRoot -ManifestPath $librariesManifest
+}
+
 if (-not $SkipRiveLibraryValidation) {
-    Test-RiveLibraries -LibrariesDirectory $librariesRoot -ManifestPath $librariesManifest -CheckHashes:(-not $AllowUnverifiedRiveLibraries)
+    Test-RiveLibraries `
+        -LibrariesDirectory $librariesRoot `
+        -ManifestPath $librariesManifest `
+        -CheckHashes:($RequireExactRiveLibraryHashes -and -not $AllowUnverifiedRiveLibraries) `
+        -StrictLibrarySet:$StrictRiveLibrarySet
 }
 
 if ($didHydrateRiveLibraries -and -not $SkipPluginBinaryClean) {
     Clear-RivePluginBuildProducts -PluginRoot $pluginRoot
-}
-
-if ($SyncHeadersAndShaders) {
-    Sync-RiveHeadersAndShaders -RuntimeRoot $runtimeRoot -PluginRoot $pluginRoot
 }
 
 if (-not $SkipUnrealBuild) {

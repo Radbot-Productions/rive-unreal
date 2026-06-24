@@ -105,8 +105,8 @@ static const FString NameForDrawType(rive::gpu::DrawType InDrawType)
             return TEXT("msaaMidpointFanPathsCover");
         case rive::gpu::DrawType::interiorTriangulation:
             return TEXT("interiorTriangulation");
-        case rive::gpu::DrawType::msaaStencilClipReset:
-            return TEXT("msaaStencilClipReset");
+        case rive::gpu::DrawType::clipReset:
+            return TEXT("clipReset");
         case rive::gpu::DrawType::atlasBlit:
             return TEXT("atlasBlit");
         case rive::gpu::DrawType::imageRect:
@@ -1377,6 +1377,7 @@ rcp<Texture> RenderContextRHIImpl::platformDecodeImageTexture(
     std::unique_ptr<Bitmap> bitmap =
         std::make_unique<Bitmap>(ImageWrapper->GetWidth(),
                                  ImageWrapper->GetHeight(),
+                                 UncompressedRGBA.Num(),
                                  Bitmap::PixelFormat::RGBA,
                                  std::move(data));
 
@@ -1385,6 +1386,7 @@ rcp<Texture> RenderContextRHIImpl::platformDecodeImageTexture(
     return makeImageTexture(bitmap->width(),
                             bitmap->height(),
                             1,
+                            rive::GPUTextureFormat::rgba32,
                             bitmap->bytes());
 }
 
@@ -1392,12 +1394,27 @@ rive::rcp<rive::gpu::Texture> RenderContextRHIImpl::makeImageTexture(
     uint32_t width,
     uint32_t height,
     uint32_t mipLevelCount,
-    const uint8_t imageDataRGBA[])
+    rive::GPUTextureFormat format,
+    const uint8_t imageData[],
+    uint8_t blockWidth,
+    uint8_t blockHeight,
+    bool srgb,
+    bool generateRemainingMips)
 {
+    (void)blockWidth;
+    (void)blockHeight;
+    (void)srgb;
+    (void)generateRemainingMips;
+
+    if (format != rive::GPUTextureFormat::rgba32)
+    {
+        return nullptr;
+    }
+
     return make_rcp<TextureRHIImpl>(width,
                                     height,
                                     mipLevelCount,
-                                    imageDataRGBA,
+                                    imageData,
                                     EPixelFormat::PF_R8G8B8A8);
 }
 
@@ -2373,7 +2390,7 @@ void RenderContextRHIImpl::flush(const FlushDescriptor& desc)
                                             PassParameters);
                                     }
                                     break;
-                                    case DrawType::msaaStencilClipReset:
+                                    case DrawType::clipReset:
                                     {
                                         CommonPassParameters
                                             .VertexDeclarationRHI =
@@ -2810,7 +2827,7 @@ void RenderContextRHIImpl::flush(const FlushDescriptor& desc)
                     case DrawType::msaaMidpointFanPathsStencil:
                     case DrawType::msaaMidpointFanPathsCover:
                     case DrawType::msaaOuterCubics:
-                    case DrawType::msaaStencilClipReset:
+                    case DrawType::clipReset:
                         RIVE_UNREACHABLE();
                 }
             }
@@ -3110,7 +3127,7 @@ void RenderContextRHIImpl::flush(const FlushDescriptor& desc)
                     case DrawType::msaaMidpointFanPathsStencil:
                     case DrawType::msaaMidpointFanPathsCover:
                     case DrawType::msaaOuterCubics:
-                    case DrawType::msaaStencilClipReset:
+                    case DrawType::clipReset:
                         RIVE_UNREACHABLE();
                 }
             }

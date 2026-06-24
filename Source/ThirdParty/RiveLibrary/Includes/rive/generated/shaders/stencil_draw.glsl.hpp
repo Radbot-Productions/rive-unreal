@@ -5,37 +5,12 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char stencil_draw[] = R"===(/*
- * Copyright 2024 Rive
- */
-
-#ifdef EXPORTED_VERTEX
-ATTR_BLOCK_BEGIN(Attrs)
-ATTR(0, packed_float3, EXPORTED_a_triangleVertex);
-ATTR_BLOCK_END
-
-VERTEX_TEXTURE_BLOCK_BEGIN
-VERTEX_TEXTURE_BLOCK_END
-
-VERTEX_STORAGE_BUFFER_BLOCK_BEGIN
-VERTEX_STORAGE_BUFFER_BLOCK_END
-
-VERTEX_MAIN(EXPORTED_stencilVertexMain, Attrs, attrs, _vertexID, _instanceID)
-{
-    ATTR_UNPACK(_vertexID, attrs, EXPORTED_a_triangleVertex, packed_float3);
-    float4 pos = RENDER_TARGET_COORD_TO_CLIP_COORD(EXPORTED_a_triangleVertex.xy);
-    uint zIndex = floatBitsToUint(EXPORTED_a_triangleVertex.z) & 0xffffu;
-    pos.z = normalize_z_index(zIndex);
-    EMIT_VERTEX(pos);
-}
+const char stencil_draw[] = R"===(#ifdef CB
+A1(a0)p0(0,L3,KB);B1 R3 S3 A4 B4 C1(OF,a0,G,v,T){q0(v,G,KB,L3);g N=K3(KB.xy);uint Z6=floatBitsToUint(KB.z)&0xffffu;N.z=ca(Z6);D1(N);}
 #endif
-
-#ifdef EXPORTED_FRAGMENT
-FRAG_TEXTURE_BLOCK_BEGIN
-FRAG_TEXTURE_BLOCK_END
-
-FRAG_DATA_MAIN(half4, EXPORTED_blitFragmentMain) { EMIT_FRAG_DATA(make_half4(.0)); }
-#endif // FRAGMENT
+#ifdef FB
+B3 C3 Y2(i,DE){G2(B0(.0));}
+#endif
 )===";
 } // namespace glsl
 } // namespace gpu
