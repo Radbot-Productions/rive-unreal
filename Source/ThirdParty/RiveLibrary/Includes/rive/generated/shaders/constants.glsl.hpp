@@ -5,298 +5,127 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char constants[] = R"===(/*
- * Copyright 2022 Rive
- */
-
-#define TESS_TEXTURE_WIDTH  float(2048)
-#define TESS_TEXTURE_WIDTH_LOG2  11
-
-#define GRAD_TEXTURE_WIDTH  float(512)
-#define GRAD_TEXTURE_INVERSE_WIDTH  float(0.001953125)
-
-// Number of standard deviations on either side of the middle of the feather
-// texture. The feather texture integrates the normal distribution from
-// -FEATHER_TEXTURE_STDDEVS to +FEATHER_TEXTURE_STDDEVS in the domain x=0..1.
-#define FEATHER_TEXTURE_STDDEVS  float(3)
-
-// Indices of function tables in the feather texture1d array.
-// NOTE: This will be a texture2d if texture1d isn't supported.
-#define FEATHER_FUNCTION_ARRAY_INDEX  0
-#define FEATHER_INVERSE_FUNCTION_ARRAY_INDEX  1
-#define FEATHER_TEXTURE_1D_ARRAY_LENGTH  2
-
-// Number of additional tessellation "helper" vertices that need to be allocated
-// for a feather join.
-#define FEATHER_JOIN_HELPER_VERTEX_COUNT  3u
-
-// Amount to increase "joinSegmentCount" in a feather join so the number of
-// literal vertices allocated increases by FEATHER_JOIN_HELPER_VERTEX_COUNT.
-#define FEATHER_JOIN_HELPER_SEGMENT_COUNT                                       \
-    (FEATHER_JOIN_HELPER_VERTEX_COUNT + 1u)
-
-// Feather joins are split into a backward and forward section. Both sections
-// need at least one segment, thus a minimum of 2 (plus helper vertices).
-#define FEATHER_JOIN_MIN_SEGMENT_COUNT  (2u + FEATHER_JOIN_HELPER_SEGMENT_COUNT)
-
-#define MIN_FEATHER  float(0.0)
-#define MAX_FEATHER  float(1.0)
-
-// Width to use for a texture that emulates a storage buffer.
-//
-// Minimize width since the texture needs to be updated in entire rows from the
-// resource buffer. Since these only serve paths and contours, both of those are
-// limited to 16-bit indices, 2048 is the min specified texture size in ES3, and
-// no path buffer uses more than 4 texels, we can safely use a width of 128.
-#define STORAGE_TEXTURE_WIDTH  128
-#define STORAGE_TEXTURE_SHIFT_Y  7
-#define STORAGE_TEXTURE_MASK_X  0x7fu
-
-// Flags that state whether/how we need to render solid-color borders to the
-// left and/or right side of a GradientSpan. (Borders of complex gradients
-// stretch all the way to the left/right edges of the texture, whereas borders
-// of simple gradients just need to stretch 1px to the left/right of the
-// span.)
-#define GRAD_SPAN_FLAG_LEFT_BORDER  0x80000000u
-#define GRAD_SPAN_FLAG_RIGHT_BORDER  0x40000000u
-#define GRAD_SPAN_FLAG_COMPLEX_BORDER  0x20000000u
-#define GRAD_SPAN_FLAGS_MASK                                                    \
-    (GRAD_SPAN_FLAG_LEFT_BORDER | GRAD_SPAN_FLAG_RIGHT_BORDER |                \
-     GRAD_SPAN_FLAG_COMPLEX_BORDER)
-
-// Tells shaders that a cubic should actually be drawn as the single, non-AA
-// triangle: [p0, p1, p3]. This is used to squeeze in more rare triangles, like
-// "grout" triangles from self intersections on interior triangulation, where it
-// wouldn't be worth it to put them in their own dedicated draw call.
-#define RETROFITTED_TRIANGLE_CONTOUR_FLAG  (1u << 31u)
-
-// Skip bit 30 in the contour flags so that it's always 0. This ensures we never
-// generate special NaN/Inf floating point values in contourIDWithFlags, which
-// may confuse the driver.
-#define NEVER_USED_CONTOUR_FLAG  (1u << 30u)
-
-// Tells the tessellation shader to re-run Wang's formula on the given curve,
-// figure out how many segments it actually needs, and make any excess segments
-// degenerate by co-locating their vertices at T=0. (Used on the "outerCurve"
-// patches that are drawn with interior triangulations.)
-#define CULL_EXCESS_TESSELLATION_SEGMENTS_CONTOUR_FLAG  (1u << 29u)
-
-// Flags for specifying the join type.
-#define JOIN_TYPE_MASK  (7u << 26u)
-#define MITER_CLIP_JOIN_CONTOUR_FLAG  (5u << 26u)
-#define MITER_REVERT_JOIN_CONTOUR_FLAG  (4u << 26u)
-#define BEVEL_JOIN_CONTOUR_FLAG  (3u << 26u)
-#define ROUND_JOIN_CONTOUR_FLAG  (2u << 26u)
-#define FEATHER_JOIN_CONTOUR_FLAG  (1u << 26u)
-
-// When a join is being used to emulate a stroke cap, the shader emits
-// additional vertices at T=0 and T=1 for round joins, and changes the miter
-// limit to 1 for miter-clip joins.
-#define EMULATED_STROKE_CAP_CONTOUR_FLAG  (1u << 25u)
-
-// Flip the sign on interpolated fragment coverage for fills. Ignored on
-// strokes. This is used when reversing the winding direction of a path.
-#define NEGATE_PATH_FILL_COVERAGE_FLAG  (1u << 24u)
-
-// Internal contour flags.
-#define MIRRORED_CONTOUR_CONTOUR_FLAG  (1u << 23u)
-#define JOIN_TANGENT_0_CONTOUR_FLAG  (1u << 22u)
-#define JOIN_TANGENT_INNER_CONTOUR_FLAG  (1u << 21u)
-#define LEFT_JOIN_CONTOUR_FLAG  (1u << 20u)
-#define RIGHT_JOIN_CONTOUR_FLAG  (1u << 19u)
-#define CONTOUR_ID_MASK  0xffffu
-
-// This is guaranteed to not collide with any path IDs being rendered.
-#define INVALID_PATH_ID  .0
-
-// This is guaranteed to not collide with a neighboring contour ID.
-#define INVALID_CONTOUR_ID_WITH_FLAGS  0u
-
-// Says which part of the patch a vertex belongs to.
-#define STROKE_VERTEX  0
-#define FAN_VERTEX  1
-#define FAN_MIDPOINT_VERTEX  2
-
-// Says which part of the patch a vertex belongs to.
-#define STROKE_VERTEX  0
-#define FAN_VERTEX  1
-#define FAN_MIDPOINT_VERTEX  2
-
-// Mirrors pls::PaintType.
-#define CLIP_UPDATE_PAINT_TYPE  0u
-#define SOLID_COLOR_PAINT_TYPE  1u
-#define LINEAR_GRADIENT_PAINT_TYPE  2u
-#define RADIAL_GRADIENT_PAINT_TYPE  3u
-#define IMAGE_PAINT_TYPE  4u
-
-// Paint flags, found in the x-component value of @paintBuffer.
-#define PAINT_FLAG_NON_ZERO_FILL  0x100u
-#define PAINT_FLAG_EVEN_ODD_FILL  0x200u
-#define PAINT_FLAG_HAS_CLIP_RECT  0x400u
-
-// PLS draw resources are either updated per flush or per draw. They go into set
-// 0 or set 1, depending on how often they are updated.
-#define PER_FLUSH_BINDINGS_SET  0
-#define PER_DRAW_BINDINGS_SET  1
-
-// Index at which we access each resource.
-// (Enumerate buffers first because GLES allows a hard limit on buffer index
-// bindings as low as 7.)
-#define FLUSH_UNIFORM_BUFFER_IDX  0
-#define PATH_BASE_INSTANCE_UNIFORM_BUFFER_IDX  1
-#define IMAGE_DRAW_UNIFORM_BUFFER_IDX  2
-#define PATH_BUFFER_IDX  3
-#define PAINT_BUFFER_IDX  4
-#define PAINT_AUX_BUFFER_IDX  5
-#define CONTOUR_BUFFER_IDX  6
-// Coverage buffer used in coverageAtomic mode.
-#define COVERAGE_BUFFER_IDX  7
-#define TESS_VERTEX_TEXTURE_IDX  8
-#define GRAD_TEXTURE_IDX  9
-#define FEATHER_TEXTURE_IDX  10
-#define ATLAS_TEXTURE_IDX  11
-#define IMAGE_TEXTURE_IDX  12
-#define IMAGE_SAMPLER_IDX  13
-#define DST_COLOR_TEXTURE_IDX  14
-#define DEFAULT_BINDINGS_SET_SIZE  15
-
-// Metal doesn't allow us to bind buffers index 0 or 1. Offset them by 2.
-#define METAL_BUFFER_IDX(IDX)  (2 + IDX)
-
-// Samplers are accessed at the same index as their corresponding texture, so we
-// put them in a separate binding set.
-#define IMMUTABLE_SAMPLER_BINDINGS_SET  2
-
-// PLS textures are accessed at the same index as their PLS planes, so we put
-// them in a separate binding set.
-#define PLS_TEXTURE_BINDINGS_SET  3
-
-#define BINDINGS_SET_COUNT  4
-
-// Index of each pixel local storage plane.
-#define COLOR_PLANE_IDX  0
-#define CLIP_PLANE_IDX  1
-#define SCRATCH_COLOR_PLANE_IDX  2
-#define COVERAGE_PLANE_IDX  3
-#define PLS_PLANE_COUNT  4
-
-// This is the framebuffer attachment index of the final color output during the
-// "coalesced" atomic resolve. (Currently only used by Vulkan.)
-// NOTE: This attachment is still referenced as color attachment 0 by the
-// resolve subpass, so the shader doesn't need to know about it.
-// NOTE: Atomic mode does not use SCRATCH_COLOR_PLANE_IDX, which is why we chose
-// to alias this one.
-#define COALESCED_ATOMIC_RESOLVE_IDX  SCRATCH_COLOR_PLANE_IDX
-
-// MSAA attaches different resources to the framebuffer instead of PLS planes.
-#define MSAA_DEPTH_STENCIL_IDX  1u
-#define MSAA_RESOLVE_IDX  2u
-#define MSAA_COLOR_SEED_IDX  3u
-
-// Rive has a hard-coded miter limit of 4 in the editor and all runtimes.
-#define RIVE_MITER_LIMIT  float(4)
-// acos(1/4), because the miter limit is 4.
-#define MITER_ANGLE_LIMIT  float(1.318116071652817965746)
-
-// Raw bit representation of the largest denormalized fp16 value. We offset all
-// (1-based) path IDs by this value in order to avoid denorms, which have been
-// empirically unreliable on Android as ID values.
-#define MAX_DENORM_F16  1023u
-
-// The minimum non-denormalized fp16 value is ~6.10e-5. So steer safely within
-// this value (and outside of denormals, which may not be respected by GPUs), by
-// using using 6.2e-5.
-#define EPSILON_FP16_NON_DENORM  6.2e-5
-
-// Blend modes. Mirrors rive::BlendMode, but 0-based and contiguous for tighter
-// packing.
-#define BLEND_SRC_OVER  0u
-#define BLEND_MODE_SCREEN  1u
-#define BLEND_MODE_OVERLAY  2u
-#define BLEND_MODE_DARKEN  3u
-#define BLEND_MODE_LIGHTEN  4u
-#define BLEND_MODE_COLORDODGE  5u
-#define BLEND_MODE_COLORBURN  6u
-#define BLEND_MODE_HARDLIGHT  7u
-#define BLEND_MODE_SOFTLIGHT  8u
-#define BLEND_MODE_DIFFERENCE  9u
-#define BLEND_MODE_EXCLUSION  10u
-#define BLEND_MODE_MULTIPLY  11u
-#define BLEND_MODE_HUE  12u
-#define BLEND_MODE_SATURATION  13u
-#define BLEND_MODE_COLOR  14u
-#define BLEND_MODE_LUMINOSITY  15u
-
-// Fixed-point coverage values for atomic mode.
-// Atomic mode uses 6:11 fixed point, so the winding number breaks if a shape
-// has more than 32 levels of self overlap in either winding direction at any
-// point.
-#define FIXED_COVERAGE_PRECISION  float(2048)
-#define FIXED_COVERAGE_INVERSE_PRECISION  float(0.00048828125)
-#define FIXED_COVERAGE_ZERO  float(1 << 16)
-#define FIXED_COVERAGE_ZERO_UINT  (1u << 16)
-#define FIXED_COVERAGE_ONE  (FIXED_COVERAGE_PRECISION + FIXED_COVERAGE_ZERO)
-#define FIXED_COVERAGE_BIT_COUNT  17u
-#define FIXED_COVERAGE_MASK  0x1ffffu
-
-// Fixed-point coverage values for clockwiseAtomic mode.
-//
-// The coverage buffer is laid out as:
-//
-//   prefix(12) : blendColorValid(1) : coverageInt(9) : coverageFract(10)
-//
-// The prefix is a monotonically increasing token that instructs the shader to
-// treat coverage as "cleared to zero" when it doesn't match the expectation,
-// effectively allowing us to clear the coverage buffer by incrementing the
-// token.
-//
-// The "blendColorValid" bit is used by shaders to signal once the blend color
-// has become valid (and before overwriting the framebuffer), indicating that
-// fragments should use that value instead of reading the framebuffer.
-//
-// NOTE: Coverage uses 9:10 fixed point, so the entire coverage buffer breaks if
-// a shape has more than 2^8 levels of self overlap in either winding direction
-// at any point. This impacts future paths as well.
-#define CLOCKWISE_COVERAGE_PRECISION  float(1024)
-#define CLOCKWISE_COVERAGE_INVERSE_PRECISION  float(0.0009765625)
-#define CLOCKWISE_COVERAGE_BIT_COUNT  19u
-#define CLOCKWISE_FILL_ZERO_VALUE  (1u << (CLOCKWISE_COVERAGE_BIT_COUNT - 1u))
-#define CLOCKWISE_COVERAGE_MASK  ((1u << CLOCKWISE_COVERAGE_BIT_COUNT) - 1u)
-#define BLEND_COLOR_VALID_BIT  (1u << CLOCKWISE_COVERAGE_BIT_COUNT)
-#define CLOCKWISE_COVERAGE_PREFIX_ONE_VALUE  (BLEND_COLOR_VALID_BIT << 1u)
-
-// Vendor IDs for driver workarounds.
-#define VULKAN_VENDOR_AMD  0x1002u
-#define VULKAN_VENDOR_IMG_TEC  0x1010u
-#define VULKAN_VENDOR_NVIDIA  0x10DEu
-#define VULKAN_VENDOR_ARM  0x13B5u
-#define VULKAN_VENDOR_QUALCOMM  0x5143u
-#define VULKAN_VENDOR_INTEL  0x8086u
-#define VULKAN_VENDOR_SAMSUNG  0x144d
-
-// Indices for SPIRV specialization constants (used in lieu of #defines in
-// Vulkan.)
-#define CLIPPING_SPECIALIZATION_IDX  0
-#define CLIP_RECT_SPECIALIZATION_IDX  1
-#define ADVANCED_BLEND_SPECIALIZATION_IDX  2
-#define FEATHER_SPECIALIZATION_IDX  3
-#define EVEN_ODD_SPECIALIZATION_IDX  4
-#define NESTED_CLIPPING_SPECIALIZATION_IDX  5
-#define HSL_BLEND_MODES_SPECIALIZATION_IDX  6
-#define DITHER_SPECIALIZATION_IDX  7
-#define CLOCKWISE_FILL_SPECIALIZATION_IDX  8
-#define BORROWED_COVERAGE_PASS_SPECIALIZATION_IDX  9
-#define VULKAN_VENDOR_ID_SPECIALIZATION_IDX  10
-#define SPECIALIZATION_COUNT  11
-
-// When rendering to an r32i feather atlas, use 16:16 fixed point.
-#define ATLAS_R32I_FIXED_POINT_FACTOR  65536.
-
-// When we have to fall back on an 8-bit color buffer to render the feather
-// atlas, sacrifice precision to lessen overflows.
-// Throwing away the bottom 3 bits seems to be the best tradeoff, based on our
-// golden image suite.
-#define ATLAS_UNORM8_COVERAGE_SCALE_FACTOR  8.
+const char constants[] = R"===(#define of float(2048)
+#define pc 11
+#define da float(512)
+#define Wb float(0.001953125)
+#define ea float(3)
+#define Zb 0
+#define ac 1
+#define qc 3u
+#define pf (qc+1u)
+#define qf float(1.0)
+#define rc 7
+#define sc 0x7fu
+#define Vb 0x80000000u
+#define Xb 0x40000000u
+#define Q9 0x20000000u
+#define We (Vb|Xb|Q9)
+#define tc (1u<<31u)
+#define rf (1u<<29u)
+#define W3 (7u<<26u)
+#define sf (5u<<26u)
+#define tf (4u<<26u)
+#define x8 (2u<<26u)
+#define y8 (1u<<26u)
+#define z8 (1u<<25u)
+#define uf (1u<<24u)
+#define D3 (1u<<23u)
+#define fa (1u<<22u)
+#define uc (1u<<21u)
+#define A8 (1u<<20u)
+#define vc (1u<<19u)
+#define wc 0xffffu
+#define vf .0
+#define B8 0
+#define xc 1
+#define yc 2
+#define B8 0
+#define xc 1
+#define yc 2
+#define Z7 0u
+#define Ab 1u
+#define E9 2u
+#define wf 3u
+#define Fe 0x100u
+#define C9 0x200u
+#define Ge 0x400u
+#define a3 0
+#define Z4 1
+#define n3 0
+#define zc 1
+#define a6 2
+#define Ac 3
+#define vb 4
+#define wb 5
+#define Bc 6
+#define ga 7
+#define xf 8
+#define Cc 9
+#define d7 10
+#define Dc 11
+#define T3 12
+#define yf 13
+#define c6 14
+#define zf 14
+#define Q0(f) (2+f)
+#define E3 2
+#define Af 3
+#define Q2 0
+#define R2 1
+#define d6 2
+#define F6 3
+#define df 1023u
+#define n9 6.2e-5
+#define M5 0u
+#define le 1u
+#define me 2u
+#define ne 3u
+#define oe 4u
+#define pe 5u
+#define re 6u
+#define se 7u
+#define te 8u
+#define ue 9u
+#define ve 10u
+#define ke 11u
+#define we 12u
+#define xe 13u
+#define ye 14u
+#define ze 15u
+#define A9 float(2048)
+#define xb float(0.00048828125)
+#define B9 float(1<<16)
+#define G9 (1u<<16)
+#define P5 17u
+#define f8 0x1ffffu
+#define Bf float(1024)
+#define ha float(0.0009765625)
+#define ia 19u
+#define j5 (1u<<(ia-1u))
+#define ja ((1u<<ia)-1u)
+#define e7 (1u<<ia)
+#define Cf 0
+#define Df 1
+#define Ef 2
+#define Ff 3
+#define Gf 4
+#define Hf 5
+#define If 6
+#define Jf 7
+#define Kf 8
+#define Lf 9
+#define Mf 10
+#define Nf 11
+#define Of 12
+#define Pf 13
+#define Ec 65536.
+#define ka 8.
+#define la 32u
+#define e6 5u
+#ifdef di
+ei(la==1u<<e6);
+#endif
 )===";
 } // namespace glsl
 } // namespace gpu

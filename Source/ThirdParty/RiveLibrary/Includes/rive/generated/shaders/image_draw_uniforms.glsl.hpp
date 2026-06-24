@@ -5,22 +5,10 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char image_draw_uniforms[] = R"===(#ifndef DRAW_IMAGE_UNIFORMS_NAME
-#define DRAW_IMAGE_UNIFORMS_NAME  EXPORTED_ImageDrawUniforms
+const char image_draw_uniforms[] = R"===(#ifndef xd
+#define xd LC
 #endif
-UNIFORM_BLOCK_BEGIN(IMAGE_DRAW_UNIFORM_BUFFER_IDX, DRAW_IMAGE_UNIFORMS_NAME)
-DECLARE_UNIFORM_FLOAT4(viewMatrix)
-DECLARE_UNIFORM_FLOAT2(translate)
-DECLARE_UNIFORM_FLOAT(opacity)
-DECLARE_UNIFORM_FLOAT(padding)
-// clipRectInverseMatrix transforms from pixel coordinates to a space where the
-// clipRect is the normalized rectangle: [-1, -1, 1, 1].
-DECLARE_UNIFORM_FLOAT4(clipRectInverseMatrix)
-DECLARE_UNIFORM_FLOAT2(clipRectInverseTranslate)
-DECLARE_UNIFORM_UINT(clipID)
-DECLARE_UNIFORM_UINT(blendMode)
-DECLARE_UNIFORM_UINT(zIndex)
-UNIFORM_BLOCK_END(imageDrawUniforms)
+m6(a6,xd)Ba(r9)r7(c2)J2(x4)J2(ki)Ba(k2)r7(D2)d3(V0)d3(n2)d3(Z6)v7(A0)
 )===";
 } // namespace glsl
 } // namespace gpu

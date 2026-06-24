@@ -5,107 +5,39 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char draw_clockwise_clip_frag[] = R"===(/*
- * Copyright 2025 Rive
- */
-
-#ifdef EXPORTED_FRAGMENT
-
-PLS_BLOCK_BEGIN
-#ifndef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-PLS_DECL4F(COLOR_PLANE_IDX, colorBuffer);
+const char draw_clockwise_clip_frag[] = R"===(#ifdef FB
+J1
+#ifndef K
+r0(Q2,g0);
 #endif
-PLS_DECLUI(CLIP_PLANE_IDX, clipBuffer);
-#ifndef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-PLS_DECL4F_RGB10_A2(SCRATCH_COLOR_PLANE_IDX, scratchColorBuffer);
+k1(R2,d0);
+#ifndef K
+Ka(d6,g4);
 #endif
-PLS_DECLUI(COVERAGE_PLANE_IDX, coverageBuffer);
-PLS_BLOCK_END
-
-PLS_MAIN(EXPORTED_drawFragmentMain)
-{
-    VARYING_UNPACK(v_clipIDs, half2);
-    half clipID = -v_clipIDs.x;
-
-#ifdef EXPORTED_DRAW_INTERIOR_TRIANGLES
-    VARYING_UNPACK(v_windingWeight, half);
-    half fragCoverage = v_windingWeight;
+k1(F6,S0);K1 m1(IB){B(S1,D);d V0=-S1.x;
+#ifdef DB
+B(j1,d);d o0=j1;
 #else
-    VARYING_UNPACK(v_coverages, COVERAGE_TYPE);
-    half fragCoverage = v_coverages.x;
-#endif //@DRAW_INTERIOR_TRIANGLES
-
-    PLS_INTERLOCK_BEGIN;
-
-    half2 clipData;
-    half clipBufferID, clipCoverage;
-#if defined(EXPORTED_DRAW_INTERIOR_TRIANGLES) && defined(EXPORTED_BORROWED_COVERAGE_PASS)
-    if (EXPORTED_BORROWED_COVERAGE_PASS)
-    {
-        // Interior triangles with borrowed coverage are always the first
-        // fragment of the path at their pixel, so we don't need to check the
-        // current coverage value.
-        clipCoverage = fragCoverage;
-    }
-    else
+B(I,z2);d o0=I.x;
 #endif
-    {
-        clipData = unpackHalf2x16(PLS_LOADUI(clipBuffer));
-        clipBufferID = clipData.y;
-        half initialCoverage =
-            clipBufferID == clipID ? clipData.x : make_half(.0);
-        clipCoverage = initialCoverage + fragCoverage;
-    }
-
-#ifdef EXPORTED_ENABLE_NESTED_CLIPPING
-    half outerClipID = v_clipIDs.y;
-    if (EXPORTED_ENABLE_NESTED_CLIPPING && outerClipID != .0)
-    {
-        half outerClipCoverage = .0;
-#if defined(EXPORTED_DRAW_INTERIOR_TRIANGLES) && defined(EXPORTED_BORROWED_COVERAGE_PASS)
-        if (EXPORTED_BORROWED_COVERAGE_PASS)
-        {
-            // Interior triangles with borrowed coverage did not load the clip
-            // buffer already, so do that now.
-            clipData = unpackHalf2x16(PLS_LOADUI(clipBuffer));
-            clipBufferID = clipData.y;
-        }
+v2;D O0;d H5,r3;
+#if defined(DB)&&defined(WB)
+if(WB){r3=o0;}else
 #endif
-        if (clipBufferID != clipID)
-        {
-            outerClipCoverage = clipBufferID == outerClipID ? clipData.x : .0;
-            // The coverage buffer is a free resource when rendering clip
-            // because we don't use it to track coverage. Use it instead to
-            // temporarily save the outer clip for nested clips. But make sure
-            // to write an invalid pathID so we don't corrupt any future paths
-            // that will be drawn.
-            PLS_STOREUI(
-                coverageBuffer,
-                packHalf2x16(make_half2(outerClipCoverage, INVALID_PATH_ID)));
-        }
-        else
-        {
-            outerClipCoverage = unpackHalf2x16(PLS_LOADUI(coverageBuffer)).x;
-            PLS_PRESERVE_UI(coverageBuffer);
-        }
-        clipCoverage = min(clipCoverage, outerClipCoverage);
-    }
-    else
+{O0=unpackHalf2x16(d1(d0));H5=O0.y;d O4=H5==V0?O0.x:G0(.0);r3=O4+o0;}
+#ifdef RC
+d F5=S1.y;if(RC&&F5!=.0){d k4=.0;
+#if defined(DB)&&defined(WB)
+if(WB){O0=unpackHalf2x16(d1(d0));H5=O0.y;}
 #endif
-    {
-        PLS_PRESERVE_UI(coverageBuffer);
-    }
-
-    PLS_STOREUI(clipBuffer, packHalf2x16(make_half2(clipCoverage, clipID)));
-#ifndef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-    PLS_PRESERVE_4F(colorBuffer);
+if(H5!=V0){k4=H5==F5?O0.x:.0;f1(S0,packHalf2x16(A2(k4,vf)));}else{k4=unpackHalf2x16(d1(S0)).x;Y1(S0);}r3=min(r3,k4);}else
 #endif
-    PLS_INTERLOCK_END;
-
-    EMIT_PLS;
-}
-
-#endif // FRAGMENT
+{Y1(S0);}f1(d0,packHalf2x16(A2(r3,V0)));
+#ifndef K
+r2(g0);
+#endif
+w2;U1;}
+#endif
 )===";
 } // namespace glsl
 } // namespace gpu

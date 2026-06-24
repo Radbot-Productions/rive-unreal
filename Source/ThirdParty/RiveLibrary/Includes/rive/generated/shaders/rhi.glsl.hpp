@@ -5,550 +5,223 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char rhi[] = R"===(/*
- * Copyright 2023 Rive
- */
-
-// This header provides GLSL-specific #defines and declarations that enable our
-// shaders to be compiled on MSL and GLSL both.
-
-// HLSL warns that it will unroll the loops through r,g,b values in
-// advanced_blend.glsl, but unrolling these loops is exactly what we want.
-#pragma warning(disable : 3550)
-
-// Don't warn about uninitialized variables. If we leave one uninitialized it's
-// because we know what we're doing and don't want to pay the cost of
-// initializing it.
-#pragma warning(disable : 4000)
-
-// #define native hlsl types if their names are being rewritten.
-#define _ARE_TOKEN_NAMES_PRESERVED
+const char rhi[] = R"===(#pragma warning(disable:3550)
+#pragma warning(disable:4000)
 #ifndef _ARE_TOKEN_NAMES_PRESERVED
-#define half  half
-#define half2  half2
-#define half3  half3
-#define half4  half4
-#define short  short
-#define short2  short2
-#define short3  short3
-#define short4  short4
-#define ushort  ushort
-#define ushort2  ushort2
-#define ushort3  ushort3
-#define ushort4  ushort4
-#define float2  float2
-#define float3  float3
-#define float4  float4
-#define bool2  bool2
-#define bool3  bool3
-#define bool4  bool4
-#define uint2  uint2
-#define uint3  uint3
-#define uint4  uint4
-#define int2  int2
-#define int3  int3
-#define int4  int4
-#define float4x2  float4x2
-#define ushort  ushort
-#define float2x2  float2x2
-#define half3x3  half3x3
-#define half2x3  half2x3
-#define half4x4  half4x4
+#define d half
+#define D half2
+#define r half3
+#define i half4
+#define X ushort
+#define c float2
+#define V float3
+#define g float4
+#define E4 bool2
+#define n6 bool3
+#define w7 bool4
+#define W0 uint2
+#define Q uint4
+#define U int2
+#define Z5 int4
+#define X ushort
+#define Z float2x2
+#define V6 half3x3
+#define W6 half2x3
+#define h5 half4x4
 #endif
-
-typedef float3 packed_float3;
-
-#ifdef EXPORTED_ENABLE_MIN_16_PRECISION
-
-#if NEEDS_USHORT_DEFINE
-
-typedef min16uint ushort;
-
-#endif // NEEDS_USHORT_DEFINE
-
+typedef V L3;
+#ifdef HE
+#if Ig
+typedef min16uint X;
+#endif
 #else
-
-#if NEEDS_USHORT_DEFINE
-
-typedef uint ushort;
-
-#endif // NEEDS_USHORT_DEFINE
-
-#endif // ENABLE_MIN_16_PRECISION
-
-#define CONCAT(A, B)  A##B
-
-#define INLINE  inline
-#define OUT(ARG_TYPE)  out ARG_TYPE
-#define INOUT(ARG_TYPE)  inout ARG_TYPE
-
-#define ATTR_BLOCK_BEGIN(NAME)                                                  \
-    struct NAME                                                                \
-    {
-#define ATTR(IDX, TYPE, NAME)  TYPE NAME : CONCAT(ATTRIBUTE, IDX)
-#define ATTR_BLOCK_END                                                          \
-    }                                                                          \
-    ;
-#define ATTR_LOAD(T, A, N, I)
-#define ATTR_UNPACK(ID, attrs, NAME, TYPE)  TYPE NAME = attrs.NAME
-
-#define UNIFORM_BLOCK_BEGIN(IDX, NAME)                                          \
-    cbuffer NAME                                                              \
-    {                                                                          \
-        struct                                                                 \
-        {
-
-#define UNIFORM_BLOCK_END(NAME)                                                 \
-    }                                                                          \
-    NAME;                                                                      \
-    }
-
-#define VARYING_BLOCK_BEGIN                                                     \
-    struct Varyings                                                            \
-    {
-
-#define NO_PERSPECTIVE  noperspective
-#define EXPORTED_OPTIONALLY_FLAT  nointerpolation
-#define FLAT  nointerpolation
-#define VARYING(IDX, TYPE, NAME)  TYPE NAME : CONCAT(TEXCOORD, IDX)
-
-#ifdef EXPORTED_NEEDS_CLIP_DISTANCE
-#define VARYING_BLOCK_END                                                       \
-    float4 _pos : SV_Position;                                                \
-    float4 _clip : SV_ClipDistance;                                           \
-    }                                                                          \
-    ;
-#else // !@NEEDS_CLIP_DISTANCE
-#define VARYING_BLOCK_END                                                       \
-    float4 _pos : SV_Position;                                                \
-    }                                                                          \
-    ;
-#endif // @NEEDS_CLIP_DISTANCE
-
-#define VARYING_INIT(NAME, TYPE)  TYPE NAME
-#define VARYING_PACK(NAME)  _varyings.NAME = NAME
-#define VARYING_UNPACK(NAME, TYPE)  TYPE NAME = _varyings.NAME
-
-#ifdef EXPORTED_VERTEX
-#define VERTEX_TEXTURE_BLOCK_BEGIN
-#define VERTEX_TEXTURE_BLOCK_END
+#if Ig
+typedef uint X;
 #endif
-
-#ifdef EXPORTED_FRAGMENT
-#define FRAG_TEXTURE_BLOCK_BEGIN
-#define FRAG_TEXTURE_BLOCK_END
 #endif
-
-#define DYNAMIC_SAMPLER_BLOCK_BEGIN
-#define DYNAMIC_SAMPLER_BLOCK_END
-
-#define TEXTURE_RGBA32UI(SET, IDX, NAME)  uniform Texture2D<uint4> NAME
-#define TEXTURE_RGBA32F(SET, IDX, NAME)  uniform Texture2D<float4> NAME
-#ifdef EXPORTED_SOURCE_TEXTURE_MSAA
-#define TEXTURE_RGBA8_MS(SET, IDX, NAME)  uniform Texture2DMS<half4> NAME
-#endif
-#define TEXTURE_RGBA8(SET, IDX, NAME)  uniform Texture2D<half4> NAME
-#define TEXTURE_R16F(SET, IDX, NAME)  uniform Texture2D<half> NAME
-#define TEXTURE_R16F_1D_ARRAY(SET, IDX, NAME)  uniform Texture2DArray<half> NAME
-#define SAMPLED_R16F_REF(NAME, SAMPLER_NAME)                                    \
-    Texture2D<half> NAME, SamplerState SAMPLER_NAME
-#define SAMPLED_R16F(NAME, SAMPLER_NAME)  NAME, SAMPLER_NAME
-
-// SAMPLER_LINEAR and SAMPLER_MIPMAP are the same because in d3d11, sampler
-// parameters are defined at the API level.
-#define SAMPLER(IDX, NAME)  SamplerState NAME;
-#define SAMPLER_LINEAR  SAMPLER
-#define SAMPLER_MIPMAP  SAMPLER
-#define SAMPLER_DYNAMIC(SET, IDX, NAME)  SAMPLER(IDX, NAME)
-
-#ifdef SOURCE_TEXTURE_MSAA
-#define TEXEL_FETCH_MS(NAME, LEVEL, COORD)  NAME.Load(COORD, LEVEL)
-#endif
-#define TEXEL_FETCH(NAME, COORD)  NAME[COORD]
-#define TEXTURE_SAMPLE(NAME, SAMPLER_NAME, COORD)                               \
-    NAME.Sample(SAMPLER_NAME, COORD)
-#define TEXTURE_SAMPLE_LOD(NAME, SAMPLER_NAME, COORD, LOD)                      \
-    NAME.SampleLevel(SAMPLER_NAME, COORD, LOD)
-#define TEXTURE_SAMPLE_LODBIAS(NAME, SAMPLER_NAME, COORD, LODBIAS)              \
-    NAME.SampleBias(SAMPLER_NAME, COORD, LODBIAS)
-#define TEXTURE_REF_SAMPLE_LOD  TEXTURE_SAMPLE_LOD
-#define TEXTURE_SAMPLE_GRAD(NAME, SAMPLER_NAME, COORD, DDX, DDY)                \
-    NAME.SampleGrad(SAMPLER_NAME, COORD, DDX, DDY)
-#define TEXTURE_GATHER(NAME, SAMPLER_NAME, COORD, TEXTURE_INVERSE_SIZE)         \
-    NAME.Gather(SAMPLER_NAME, (COORD) * (TEXTURE_INVERSE_SIZE))
-#define TEXTURE_SAMPLE_LOD_1D_ARRAY(NAME,                                      \
-                                    SAMPLER_NAME,                              \
-                                    X,                                         \
-                                    ARRAY_INDEX,                               \
-                                    ARRAY_INDEX_NORMALIZED,                    \
-                                    LOD)                                        \
-    NAME.SampleLevel(SAMPLER_NAME, float3(X, 0.5, ARRAY_INDEX), LOD)
-
-#define TEXTURE_SAMPLE_DYNAMIC(TEXTURE, SAMPLER_NAME, COORD)                    \
-    TEXTURE_SAMPLE(TEXTURE, SAMPLER_NAME, COORD)
-#define TEXTURE_SAMPLE_DYNAMIC_LOD(TEXTURE, SAMPLER_NAME, COORD, LOD)           \
-    TEXTURE_SAMPLE_LOD(TEXTURE, SAMPLER_NAME, COORD, LOD)
-#define TEXTURE_SAMPLE_DYNAMIC_LODBIAS(TEXTURE, SAMPLER_NAME, COORD, LODBIAS)   \
-    TEXTURE_SAMPLE_LODBIAS(TEXTURE, SAMPLER_NAME, COORD, LODBIAS)
-
-#define PLS_INTERLOCK_BEGIN
-#define PLS_INTERLOCK_END
-
-#ifdef EXPORTED_ENABLE_RASTERIZER_ORDERED_VIEWS
-#define PLS_TEX2D  RasterizerOrderedTexture2D
+#define Dd(A,F) A##F
+#define e inline
+#define e1(g2) out g2
+#define T4(g2) inout g2
+#define A1(a) struct a{
+#define p0(f,W,a) W a:Dd(ni,f)
+#define B1 };
+#define q0(O8,G,a,W) W a=G.a
+#define m6(f,a) cbuffer a{struct{
+#define v7(a) }a;}
+#define h2 struct f0{
+#define J0 noperspective
+#define OB nointerpolation
+#define R4 nointerpolation
+#define c0(f,W,a) W a:Dd(TEXCOORD,f)
+#ifdef QE
+#define a2 g L0:SV_Position;g Jg:SV_ClipDistance;};
 #else
-#define PLS_TEX2D  RWTexture2D
+#define a2 g L0:SV_Position;};
 #endif
-
-#if defined(EXPORTED_FRAGMENT) && defined(EXPORTED_RENDER_MODE_MSAA)
-
-#ifdef EXPORTED_SUPPORTS_SUBPASS_LOAD
-#define DST_COLOR_TEXTURE(NAME)                                                 \
-    [[vk::input_attachment_index(COLOR_PLANE_IDX)]] SubpassInputMS<half4> NAME
-
-#define DST_COLOR_FETCH(NAME)                                                   \
-    dst_color_fetch(half4x4(NAME.SubpassLoad(0),                               \
-                            NAME.SubpassLoad(1),                               \
-                            NAME.SubpassLoad(2),                               \
-                            NAME.SubpassLoad(3)),                              \
-                    _sampleMask)
-#else
-#define DST_COLOR_TEXTURE(NAME)  Texture2D NAME
-
-#define DST_COLOR_FETCH(NAME)  NAME[_plsCoord]
+#define Y(a,W) W a
+#define k0(a) R.a=a
+#define B(a,W) W a=R.a
+#ifdef CB
+#define R3
+#define S3
 #endif
-#endif // @FRAGMENT && @RENDER_MODE_MSAA
-
-#define PLS_BLOCK_BEGIN
-#define PLS_BLOCK_END
-
-#ifdef EXPORTED_ENABLE_TYPED_UAV_LOAD_STORE
-#define PLS_DECL4F(IDX, NAME)  uniform PLS_TEX2D<UNORM half4> NAME
-#else
-#define PLS_DECL4F(IDX, NAME)  uniform PLS_TEX2D<uint> NAME
+#ifdef FB
+#define B3
+#define C3
 #endif
-#define PLS_DECL4F_READONLY  PLS_DECL4F
-#define PLS_DECLUI(IDX, NAME)  uniform PLS_TEX2D<uint> NAME
-
-#define PLS_LOADUI_UAV  PLS_LOADUI
-#define PLS_STOREUI_UAV  PLS_STOREUI
-
-#if COMPILER_METAL || FORCE_ATOMIC_BUFFER
-#define PLS_DECLUI_UAV(IDX, NAME)  uniform RWBuffer<uint> NAME
-#define PLS_LOADUI_UAV(PLANE)  PLANE[_plsIdx]
-#define PLS_STOREUI_UAV(PLANE, VALUE)  PLANE[_plsIdx] = VALUE
-#else
-#define PLS_DECLUI_UAV  PLS_DECLUI
-#define PLS_LOADUI_UAV  PLS_LOADUI
-#define PLS_STOREUI_UAV  PLS_STOREUI
-#endif // COMPILER_METAL
-
-#ifdef EXPORTED_ENABLE_TYPED_UAV_LOAD_STORE
-#define PLS_LOAD4F(PLANE)  PLANE[_plsCoord]
-#else
-#define PLS_LOAD4F(PLANE)  unpackUnorm4x8(PLANE[_plsCoord])
+#define a5
+#define c5
+#define D4(M,f,a) uniform Texture2D<Q>a
+#define e5(M,f,a) uniform Texture2D<g>a
+#ifdef GD
+#define Te(M,f,a) uniform Texture2DMS<i>a
 #endif
-#define PLS_LOADUI(PLANE)  PLANE[_plsCoord]
-#ifdef EXPORTED_ENABLE_TYPED_UAV_LOAD_STORE
-#define PLS_STORE4F(PLANE, VALUE)  PLANE[_plsCoord] = (VALUE)
-#else
-#define PLS_STORE4F(PLANE, VALUE)  PLANE[_plsCoord] = packUnorm4x8(VALUE)
+#define X2(M,f,a) uniform Texture2D<i>a
+#define k5(M,f,a) uniform Texture2D<d>a
+#define f6(M,f,a) uniform Texture2DArray<d>a
+#define x5(f,a) SamplerState a;
+#define X3 x5
+#define o6(M,f,a) x5(f,a)
+#define U3(a) x5(T3,a)
+#ifdef qi
+#define m8(a,Kg,l) a.ri(l,Kg)
 #endif
-#define PLS_STOREUI(PLANE, VALUE)  PLANE[_plsCoord] = (VALUE)
-
-#if COMPILER_METAL || FORCE_ATOMIC_BUFFER
-INLINE uint pls_atomic_max(RWBuffer<uint> plane, uint _plsIdx, uint x)
-{
-    uint originalValue;
-    InterlockedMax(plane[_plsIdx], x, originalValue);
-    return originalValue;
-}
-
-#define PLS_ATOMIC_MAX(PLANE, X)  pls_atomic_max(PLANE, _plsIdx, X)
-
-INLINE uint pls_atomic_add(RWBuffer<uint> plane, uint _plsIdx, uint x)
-{
-    uint originalValue;
-    InterlockedAdd(plane[_plsIdx], x, originalValue);
-    return originalValue;
-}
-
-#define PLS_ATOMIC_ADD(PLANE, X)  pls_atomic_add(PLANE, _plsIdx, X)
+#define v1(a,l) a[l]
+#define r5(a,p,l) a.Sample(p,l)
+#define m2(a,p,l,X0) a.SampleLevel(p,l,X0)
+#define v5(a,p,l,P1) a.SampleBias(p,l,P1)
+#define U6(a,p,q,p6,Q8,X0) a.SampleLevel(p,V(q,0.5,p6),X0)
+#define g8(h0,p,l) r5(h0,p,l)
+#define Q6(h0,p,l,X0) m2(h0,p,l,X0)
+#define y7(h0,p,l,P1) v5(h0,p,l,P1)
+#define v2
+#define w2
+#ifdef IE
+#define K2 RasterizerOrderedTexture2D
 #else
-INLINE uint pls_atomic_max(PLS_TEX2D<uint> plane, int2 _plsCoord, uint x)
-{
-    uint originalValue;
-    InterlockedMax(plane[_plsCoord], x, originalValue);
-    return originalValue;
-}
-
-#define PLS_ATOMIC_MAX(PLANE, X)  pls_atomic_max(PLANE, _plsCoord, X)
-
-INLINE uint pls_atomic_add(PLS_TEX2D<uint> plane, int2 _plsCoord, uint x)
-{
-    uint originalValue;
-    InterlockedAdd(plane[_plsCoord], x, originalValue);
-    return originalValue;
-}
-
-#define PLS_ATOMIC_ADD(PLANE, X)  pls_atomic_add(PLANE, _plsCoord, X)
+#define K2 RWTexture2D
 #endif
-
-#define PLS_PRESERVE_4F(PLANE)
-#define PLS_PRESERVE_UI(PLANE)
-
-#define VERTEX_CONTEXT_DECL
-#define VERTEX_CONTEXT_UNPACK
-
-#define TEXTURE_CONTEXT_DECL
-#define TEXTURE_CONTEXT_FORWARD
-
-#ifdef EXPORTED_NO_VARYING
-
-#define VERTEX_MAIN(NAME, Attrs, attrs, _vertexID, _instanceID)                 \
-                                                                               \
-    uint baseInstance;                                                        \
-                                                                               \
-    float4 NAME(Attrs attrs,                                                   \
-                uint _vertexID : SV_VertexID,                                 \
-                uint _instanceIDWithoutBase : SV_InstanceID) :                \
-        SV_Position                                                           \
-    {                                                                          \
-        uint _instanceID = _instanceIDWithoutBase + baseInstance;
-
-#define EMIT_VERTEX(POSITION)                                                   \
-    return POSITION;                                                           \
-    }
-
-#else // !@NO_VARYING
-
-#define VERTEX_MAIN(NAME, Attrs, attrs, _vertexID, _instanceID)                 \
-                                                                               \
-    uint baseInstance;                                                        \
-                                                                               \
-    Varyings NAME(Attrs attrs,                                                 \
-                  uint _vertexID : SV_VertexID,                               \
-                  uint _instanceIDWithoutBase : SV_InstanceID)                \
-    {                                                                          \
-        uint _instanceID = _instanceIDWithoutBase + baseInstance;             \
-        Varyings _varyings;
-
-#define IMAGE_RECT_VERTEX_MAIN(NAME, Attrs, attrs, _vertexID, _instanceID)      \
-    Varyings NAME(Attrs attrs, uint _vertexID : SV_VertexID)                  \
-    {                                                                          \
-        Varyings _varyings;                                                    \
-        float4 _pos;
-
-#define IMAGE_MESH_VERTEX_MAIN(NAME,                                           \
-                               PositionAttr,                                   \
-                               position,                                       \
-                               UVAttr,                                         \
-                               uv,                                             \
-                               _vertexID)                                       \
-    Varyings NAME(PositionAttr position,                                       \
-                  UVAttr uv,                                                   \
-                  uint _vertexID : SV_VertexID)                               \
-    {                                                                          \
-        Varyings _varyings;                                                    \
-        float4 _pos;
-
-#define EMIT_VERTEX(POSITION)                                                   \
-    _varyings._pos = POSITION;                                                 \
-    }                                                                          \
-    return _varyings;
-#endif // End !@NO_VARYING
-
-// RHI is forced counter clockwise front. So reverse the "isFrontFace" argument
-// for clockwise
-
-#ifdef EXPORTED_NO_VARYING
-#define FRAG_DATA_MAIN(DATA_TYPE, NAME)                                         \
-    EARLYDEPTHSTENCIL DATA_TYPE NAME(float4 _pos : SV_Position) : SV_Target \
-    {                                                                          \
-        float2 _fragCoord = _pos.xy;
-
-#define FRAG_DATA_MAIN_WITH_CLOCKWISE(DATA_TYPE, NAME)                          \
-    EARLYDEPTHSTENCIL DATA_TYPE NAME(float4 _pos : SV_Position,               \
-                                     uint _sampleMask : SV_Coverage,          \
-                                     bool _isFrontFace : SV_IsFrontFace) :    \
-        SV_Target                                                             \
-    {                                                                          \
-        float2 _fragCoord = _pos.xy;                                           \
-        bool _clockwise = !_isFrontFace;
+#if defined(FB)&&defined(BB)
+#ifdef MF
+#define g7(a) [[ti::input_attachment_index(Q2)]]SubpassInputMS<i>a
+#define S8(a) oc(h5(a.Oa(0),a.Oa(1),a.Oa(2),a.Oa(3)),Pa)
 #else
-#define FRAG_DATA_MAIN(DATA_TYPE, NAME)                                         \
-    EARLYDEPTHSTENCIL DATA_TYPE NAME(Varyings _varyings,                      \
-                                      uint _sampleMask : SV_Coverage) :       \
-        SV_Target                                                             \
-    {                                                                          \
-        float2 _fragCoord = _varyings._pos.xy;                                 \
-        int2 _plsCoord = int2(floor(_fragCoord));                              \
-        uint _plsIdx = _plsCoord.y * uniforms.renderTargetWidth + _plsCoord.x;
-
-#define FRAG_DATA_MAIN_WITH_CLOCKWISE(DATA_TYPE, NAME)                          \
-    DATA_TYPE NAME(Varyings _varyings,                                         \
-                   uint _sampleMask : SV_Coverage,                            \
-                   bool _isFrontFace : SV_IsFrontFace) :                      \
-        SV_Target                                                             \
-    {                                                                          \
-        float2 _fragCoord = _varyings._pos.xy;                                 \
-        int2 _plsCoord = int2(floor(_fragCoord));                              \
-        uint _plsIdx = _plsCoord.y * uniforms.renderTargetWidth + _plsCoord.x; \
-        bool _clockwise = !_isFrontFace;
-
+#define g7(a) Texture2D a
+#define S8(a) a[E]
 #endif
-
-#define EMIT_FRAG_DATA(VALUE)                                                   \
-    return VALUE;                                                              \
-    }
-#ifdef EXPORTED_NEEDS_CLIP_DISTANCE
-#define CLIP_CONTEXT_FORWARD  , out float4 gl_ClipDistance
-#define CLIP_CONTEXT_UNPACK  , _varyings._clip
+#endif
+#define J1
+#define K1
+#ifdef KC
+#define r0(f,a) uniform K2<ui i>a
 #else
-#define CLIP_CONTEXT_FORWARD
-#define CLIP_CONTEXT_UNPACK
+#define r0(f,a) uniform K2<uint>a
 #endif
-
-#define FRAGMENT_CONTEXT_DECL  , float2 _fragCoord
-#define FRAGMENT_CONTEXT_UNPACK  , _fragCoord
-
-#define PLS_CONTEXT_DECL  , int2 _plsCoord
-#define PLS_CONTEXT_UNPACK  , _plsCoord
-
-#define PLS_MAIN(NAME)                                                          \
-    EARLYDEPTHSTENCIL void NAME(Varyings _varyings)                           \
-    {                                                                          \
-        float2 _fragCoord = _varyings._pos.xy;                                 \
-        int2 _plsCoord = int2(floor(_fragCoord));                              \
-        uint _plsIdx = _plsCoord.y * uniforms.renderTargetWidth + _plsCoord.x;
-
-#define PLS_MAIN_WITH_IMAGE_UNIFORMS(NAME)  PLS_MAIN(NAME)
-
-#if defined(EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT) && defined(EXPORTED_DRAW_IMAGE_MESH)
-#define EMIT_PLS  EMIT_PLS_AND_FRAG_COLOR
+#define n4 r0
+#define k1(f,a) uniform K2<uint>a
+#define T2 d1
+#define U2 f1
+#if COMPILER_METAL||FORCE_ATOMIC_BUFFER
+#define E2(f,a) uniform RWBuffer<uint>a
+#define T2(h) h[C0]
+#define U2(h,C) h[C0]=C
 #else
-#define EMIT_PLS  }
+#define E2 k1
+#define T2 d1
+#define U2 f1
 #endif
-
-#define PLS_FRAG_COLOR_MAIN(NAME)                                               \
-    EARLYDEPTHSTENCIL half4 NAME(Varyings _varyings) : SV_Target             \
-    {                                                                          \
-        float2 _fragCoord = _varyings._pos.xy;                                 \
-        int2 _plsCoord = int2(floor(_fragCoord));                              \
-        uint _plsIdx = _plsCoord.y * uniforms.renderTargetWidth + _plsCoord.x; \
-        half4 _fragColor;
-
-#define PLS_FRAG_COLOR_MAIN_WITH_IMAGE_UNIFORMS(NAME)  PLS_FRAG_COLOR_MAIN(NAME)
-
-#define EMIT_PLS_AND_FRAG_COLOR                                                 \
-    }                                                                          \
-    return _fragColor;
-
-#define uintBitsToFloat  asfloat
-#define intBitsToFloat  asfloat
-#define floatBitsToInt  asint
-#define floatBitsToUint  asuint
-#define inversesqrt  rsqrt
-#define equal(A, B)  ((A) == (B))
-#define notEqual(A, B)  ((A) != (B))
-#define lessThanEqual(A, B)  ((A) <= (B))
-#define lessThan(A, B)  ((A) < (B))
-#define greaterThan(A, B)  ((A) > (B))
-#define greaterThanEqual(A, B)  ((A) >= (B))
-
-// HLSL matrices are stored in row-major order, and therefore transposed from
-// their counterparts in GLSL and Metal. We can work around this entirely by
-// reversing the arguments to mul().
-#define MUL(A, B)  mul(B, A)
-
-#define VERTEX_STORAGE_BUFFER_BLOCK_BEGIN
-#define VERTEX_STORAGE_BUFFER_BLOCK_END
-
-#define FRAG_STORAGE_BUFFER_BLOCK_BEGIN
-#define FRAG_STORAGE_BUFFER_BLOCK_END
-
-#define STORAGE_BUFFER_U32x2(IDX, GLSL_STRUCT_NAME, NAME)                       \
-    StructuredBuffer<uint2> NAME
-#define STORAGE_BUFFER_U32x4(IDX, GLSL_STRUCT_NAME, NAME)                       \
-    StructuredBuffer<uint4> NAME
-#define STORAGE_BUFFER_F32x4(IDX, GLSL_STRUCT_NAME, NAME)                       \
-    StructuredBuffer<float4> NAME
-
-#define STORAGE_BUFFER_LOAD4(NAME, I)  NAME[I]
-#define STORAGE_BUFFER_LOAD2(NAME, I)  NAME[I]
-
-INLINE half2 unpackHalf2x16(uint u)
-{
-    uint y = (u >> 16);
-    uint x = u & 0xffffu;
-    return half2(f16tof32(x), f16tof32(y));
-}
-
-INLINE uint packHalf2x16(float2 v)
-{
-    uint x = f32tof16(v.x);
-    uint y = f32tof16(v.y);
-    return (y << 16) | x;
-}
-
-INLINE half4 unpackUnorm4x8(uint u)
-{
-    uint4 vals = uint4(u & 0xffu, (u >> 8) & 0xffu, (u >> 16) & 0xffu, u >> 24);
-    return half4(vals) * (1. / 255.);
-}
-
-INLINE uint packUnorm4x8(half4 color)
-{
-    uint4 vals = (uint4(color * 255.) & 0xff) << uint4(0, 8, 16, 24);
-    vals.xy |= vals.zw;
-    vals.x |= vals.y;
-    return vals.x;
-}
-
-INLINE float2x2 inverse(float2x2 m)
-{
-    float2x2 adjoint = float2x2(m[1][1], -m[0][1], -m[1][0], m[0][0]);
-    return adjoint * (1. / determinant(m));
-}
-
-// Redirects for intrinsics that have different names in HLSL
-
-INLINE float mix(float x, float y, float s) { return lerp(x, y, s); }
-INLINE float2 mix(float2 x, float2 y, float2 s) { return lerp(x, y, s); }
-INLINE float3 mix(float3 x, float3 y, float3 s) { return lerp(x, y, s); }
-INLINE float4 mix(float4 x, float4 y, float4 s) { return lerp(x, y, s); }
-
-INLINE float fract(float x) { return frac(x); }
-INLINE float2 fract(float2 x) { return frac(x); }
-INLINE float3 fract(float3 x) { return frac(x); }
-INLINE float4 fract(float4 x) { return frac(x); }
-
-INLINE float mod(float x, float y) { return fmod(x, y); }
-
-// Reimplement intrinsics for half types.
-// This shadows the intrinsic function for floats, so we also have to declare
-// that overload.
-
-INLINE float rive_sign(float x) { return sign(x); }
-INLINE float2 rive_sign(float2 x) { return sign(x); }
-INLINE float3 rive_sign(float3 x) { return sign(x); }
-INLINE float4 rive_sign(float4 x) { return sign(x); }
-
-#define sign  rive_sign
-
-INLINE float rive_abs(float x) { return abs(x); }
-INLINE float2 rive_abs(float2 x) { return abs(x); }
-INLINE float3 rive_abs(float3 x) { return abs(x); }
-INLINE float4 rive_abs(float4 x) { return abs(x); }
-
-#define abs  rive_abs
-
-INLINE float rive_sqrt(float x) { return sqrt(x); }
-INLINE float2 rive_sqrt(float2 x) { return sqrt(x); }
-INLINE float3 rive_sqrt(float3 x) { return sqrt(x); }
-INLINE float4 rive_sqrt(float4 x) { return sqrt(x); }
-
-#define sqrt  rive_sqrt
+#ifdef KC
+#define H0(h) h[E]
+#else
+#define H0(h) unpackUnorm4x8(h[E])
+#endif
+#define d1(h) h[E]
+#ifdef KC
+#define v0(h,C) h[E]=(C)
+#else
+#define v0(h,C) h[E]=packUnorm4x8(C)
+#endif
+#define f1(h,C) h[E]=(C)
+#if COMPILER_METAL||FORCE_ATOMIC_BUFFER
+e uint y5(RWBuffer<uint>p3,uint C0,uint x){uint a1;InterlockedMax(p3[C0],x,a1);return a1;}
+#define W4(h,q) y5(h,C0,q)
+e uint z5(RWBuffer<uint>p3,uint C0,uint x){uint a1;InterlockedAdd(p3[C0],x,a1);return a1;}
+#define X4(h,q) z5(h,C0,q)
+#else
+e uint y5(K2<uint>p3,U E,uint x){uint a1;InterlockedMax(p3[E],x,a1);return a1;}
+#define W4(h,q) y5(h,E,q)
+e uint z5(K2<uint>p3,U E,uint x){uint a1;InterlockedAdd(p3[E],x,a1);return a1;}
+#define X4(h,q) z5(h,E,q)
+#endif
+#define r2(h)
+#define Y1(h)
+#define i6
+#define v3
+#define F3
+#define g1
+#ifdef RE
+#define C1(a,a0,G,v,T) uint baseInstance;g a(a0 G,uint v:SV_VertexID,uint D7:SV_InstanceID):SV_Position{uint T=D7+baseInstance;
+#define D1(A5) return A5;}
+#else
+#define C1(a,a0,G,v,T) uint baseInstance;f0 a(a0 G,uint v:SV_VertexID,uint D7:SV_InstanceID){uint T=D7+baseInstance;f0 R;
+#define S7(a,a0,G,v,T) f0 a(a0 G,uint v:SV_VertexID){f0 R;g L0;
+#define E6(a,h3,i3,w3,x3,v) f0 a(h3 i3,w3 x3,uint v:SV_VertexID){f0 R;g L0;
+#define D1(A5) R.L0=A5;}return R;
+#endif
+#ifdef RE
+#define Y2(Q1,a) EARLYDEPTHSTENCIL Q1 a(g L0:SV_Position):SV_Target{c S=L0.xy;
+#define q6(Q1,a) vi Q1 a(g L0:SV_Position,uint Pa:SV_Coverage,bool Qa:SV_IsFrontFace):SV_Target{c S=L0.xy;bool r6=!Qa;
+#else
+#define Y2(Q1,a) EARLYDEPTHSTENCIL Q1 a(f0 R,uint Pa:SV_Coverage):SV_Target{c S=R.L0.xy;U E=U(floor(S));uint C0=E.y*k.q5+E.x;
+#define q6(Q1,a) Q1 a(f0 R,uint Pa:SV_Coverage,bool Qa:SV_IsFrontFace):SV_Target{c S=R.L0.xy;U E=U(floor(S));uint C0=E.y*k.q5+E.x;bool r6=!Qa;
+#endif
+#define G2(C) return C;}
+#ifdef QE
+#define a7 ,out g gl_ClipDistance
+#define w5 ,R.Jg
+#else
+#define a7
+#define w5
+#endif
+#define G6 ,c S
+#define S2 ,S
+#define P3 ,U E
+#define M1 ,E
+#define m1(a) EARLYDEPTHSTENCIL void a(f0 R){c S=R.L0.xy;U E=U(floor(S));uint C0=E.y*k.q5+E.x;
+#define O5(a) m1(a)
+#if defined(K)&&defined(LB)
+#define U1 l3
+#else
+#define U1 }
+#endif
+#define o2(a) EARLYDEPTHSTENCIL i a(f0 R):SV_Target{c S=R.L0.xy;U E=U(floor(S));uint C0=E.y*k.q5+E.x;i l1;
+#define r4(a) o2(a)
+#define l3 }return l1;
+#define uintBitsToFloat asfloat
+#define floatBitsToInt asint
+#define floatBitsToUint asuint
+#define inversesqrt rsqrt
+#define equal(A,F) ((A)==(F))
+#define notEqual(A,F) ((A)!=(F))
+#define lessThan(A,F) ((A)<(F))
+#define greaterThan(A,F) ((A)>(F))
+#define Z0(A,F) mul(F,A)
+#define A4
+#define B4
+#define N3
+#define O3
+#define J5(f,y1,a) StructuredBuffer<W0>a
+#define F4(f,y1,a) StructuredBuffer<Q>a
+#define K5(f,y1,a) StructuredBuffer<g>a
+#define P0(a,y0) a[y0]
+#define L5(a,y0) a[y0]
+e D unpackHalf2x16(uint u){uint y=(u>>16);uint x=u&0xffffu;return D(f16tof32(x),f16tof32(y));}e uint packHalf2x16(c e2){uint x=f32tof16(e2.x);uint y=f32tof16(e2.y);return(y<<16)|x;}e i unpackUnorm4x8(uint u){Q R1=Q(u&0xffu,(u>>8)&0xffu,(u>>16)&0xffu,u>>24);return i(R1)*(1./255.);}e uint packUnorm4x8(i j){Q R1=(Q(j*255.)&0xff)<<Q(0,8,16,24);R1.xy|=R1.zw;R1.x|=R1.y;return R1.x;}e Z inverse(Z o1){Z La=Z(o1[1][1],-o1[0][1],-o1[1][0],o1[0][0]);return La*(1./determinant(o1));}e float mix(float x,float y,float s){return lerp(x,y,s);}e c mix(c x,c y,c s){return lerp(x,y,s);}e V mix(V x,V y,V s){return lerp(x,y,s);}e g mix(g x,g y,g s){return lerp(x,y,s);}e float fract(float x){return frac(x);}e c fract(c x){return frac(x);}e V fract(V x){return frac(x);}e g fract(g x){return frac(x);}e float mod(float x,float y){return fmod(x,y);}e float L2(float x){return sign(x);}e c L2(c x){return sign(x);}e V L2(V x){return sign(x);}e g L2(g x){return sign(x);}
+#define sign L2
+e float M2(float x){return abs(x);}e c M2(c x){return abs(x);}e V M2(V x){return abs(x);}e g M2(g x){return abs(x);}
+#define abs M2
+e float N2(float x){return sqrt(x);}e c N2(c x){return sqrt(x);}e V N2(V x){return sqrt(x);}e g N2(g x){return sqrt(x);}
+#define sqrt N2
 )===";
 } // namespace glsl
 } // namespace gpu

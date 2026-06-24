@@ -5,255 +5,69 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char render_atlas[] = R"===(/*
- * Copyright 2025 Rive
- */
-
-#ifdef EXPORTED_VERTEX
-ATTR_BLOCK_BEGIN(Attrs)
-// [localVertexID, outset, fillCoverage, vertexType]
-ATTR(0, float4, EXPORTED_a_patchVertexData);
-ATTR(1, float4, EXPORTED_a_mirroredVertexData);
-ATTR_BLOCK_END
+const char render_atlas[] = R"===(#ifdef CB
+A1(a0)p0(0,g,SB);p0(1,g,TB);B1
 #endif
-
-VARYING_BLOCK_BEGIN
-NO_PERSPECTIVE VARYING(0, float4, v_coverages);
-VARYING_BLOCK_END
-
-#ifdef EXPORTED_VERTEX
-VERTEX_MAIN(EXPORTED_atlasVertexMain, Attrs, attrs, _vertexID, _instanceID)
-{
-    ATTR_UNPACK(_vertexID, attrs, EXPORTED_a_patchVertexData, float4);
-    ATTR_UNPACK(_vertexID, attrs, EXPORTED_a_mirroredVertexData, float4);
-
-    VARYING_INIT(v_coverages, float4);
-
-    float4 pos;
-    uint pathID;
-    float2 vertexPosition;
-    if (unpack_tessellated_path_vertex(EXPORTED_a_patchVertexData,
-                                       EXPORTED_a_mirroredVertexData,
-                                       _instanceID,
-                                       pathID,
-                                       vertexPosition,
-                                       v_coverages VERTEX_CONTEXT_UNPACK))
-    {
-        // Offset from on-screen coordinates to atlas coordinates.
-        uint4 pathData2 = STORAGE_BUFFER_LOAD4(EXPORTED_pathBuffer, pathID * 4u + 2u);
-        float3 atlasTransform = uintBitsToFloat(pathData2.yzw);
-        vertexPosition = vertexPosition * atlasTransform.x + atlasTransform.yz;
-
-        pos = pixel_coord_to_clip_coord(vertexPosition,
-                                        uniforms.atlasContentInverseViewport.x,
-                                        uniforms.atlasContentInverseViewport.y);
-#ifdef EXPORTED_POST_INVERT_Y
-        pos.y = -pos.y;
+h2 J0 c0(0,g,I);a2
+#ifdef CB
+C1(KF,a0,G,v,T){q0(v,G,SB,g);q0(v,G,TB,g);Y(I,g);g N;uint l0;c i0;if(p9(SB,TB,T,l0,i0,I v3)){Q J4=P0(MB,l0*4u+2u);V p7=uintBitsToFloat(J4.yzw);i0=i0*p7.x+p7.yz;N=o8(i0,k.ed.x,k.ed.y);
+#ifdef JC
+N.y=-N.y;
 #endif
-    }
-    else
-    {
-        pos = float4(uniforms.vertexDiscardValue,
-                     uniforms.vertexDiscardValue,
-                     uniforms.vertexDiscardValue,
-                     uniforms.vertexDiscardValue);
-    }
-
-    VARYING_PACK(v_coverages);
-    EMIT_VERTEX(pos);
-}
-#endif // @VERTEX
-
-#ifdef EXPORTED_FRAGMENT
-
-#ifdef EXPORTED_ATLAS_FEATHERED_FILL
-INLINE half signed_fill_coverage(float4 coverages,
-                                 bool clockwise TEXTURE_CONTEXT_DECL)
-{
-    half coverage = eval_feathered_fill(coverages TEXTURE_CONTEXT_FORWARD);
-    if (!clockwise)
-        coverage = -coverage;
-    return coverage;
-}
+}else{N=g(k.P2,k.P2,k.P2,k.P2);}k0(I);D1(N);}
 #endif
-
-#ifdef EXPORTED_ATLAS_RENDER_TARGET_R32UI_FRAMEBUFFER_FETCH
-
-// Store coverage as fp32 data bits in an r32ui color buffer, and use
-// framebuffer-fetch to manipulate it.
-layout(location = 0) inout uint4 coverageCount;
-
-#ifdef EXPORTED_ATLAS_FEATHERED_FILL
-void main()
-{
-    float coverage = uintBitsToFloat(coverageCount.x);
-    coverage += signed_fill_coverage(v_coverages,
-                                     gl_FrontFacing TEXTURE_CONTEXT_FORWARD);
-    coverageCount.x = floatBitsToUint(coverage);
-}
+#ifdef FB
+#ifdef FC
+e d v6(g J,bool Hg F3){d n=d8(J g1);if(!Hg)n=-n;return n;}
 #endif
-
-#ifdef EXPORTED_ATLAS_FEATHERED_STROKE
-void main()
-{
-    float coverage = uintBitsToFloat(coverageCount.x);
-    coverage = max(coverage, eval_feathered_stroke(v_coverages));
-    coverageCount.x = floatBitsToUint(coverage);
-}
+#ifdef MD
+layout(location=0)inout Q m0;
+#ifdef FC
+void main(){float n=uintBitsToFloat(m0.x);n+=v6(I,gl_FrontFacing g1);m0.x=floatBitsToUint(n);}
 #endif
-
-#elif defined(EXPORTED_ATLAS_RENDER_TARGET_R8_PLS_EXT)
-
-// Manipulate fp32 coverage in pixel local storage, which will be written out
-// to an r32ui color buffer during a separate resolve step.
-__pixel_localEXT PLS { layout(r32f) float coverageCount; };
-
-#ifdef EXPORTED_ATLAS_FEATHERED_FILL
-void main()
-{
-    coverageCount +=
-        signed_fill_coverage(v_coverages,
-                             gl_FrontFacing TEXTURE_CONTEXT_FORWARD);
-}
+#ifdef MC
+void main(){float n=uintBitsToFloat(m0.x);n=max(n,v4(I));m0.x=floatBitsToUint(n);}
 #endif
-
-#ifdef EXPORTED_ATLAS_FEATHERED_STROKE
-void main()
-{
-    coverageCount = max(coverageCount, eval_feathered_stroke(v_coverages));
-}
+#elif defined(ND)
+__pixel_localEXT n1{layout(r32f)float m0;};
+#ifdef FC
+void main(){m0+=v6(I,gl_FrontFacing g1);}
 #endif
-
+#ifdef MC
+void main(){m0=max(m0,v4(I));}
+#endif
 #elif defined(EXPORTED_ATLAS_RENDER_TARGET_R32UI_PLS_ANGLE)
-
-// Store and manipulate coverage as fp32 data bits in r32ui-texture-backed pixel
-// local storage.
-layout(binding = 0, r32ui) uniform highp upixelLocalANGLE coverageCount;
-
-#ifdef EXPORTED_ATLAS_FEATHERED_FILL
-void main()
-{
-    float coverage = uintBitsToFloat(pixelLocalLoadANGLE(coverageCount).x);
-    coverage += signed_fill_coverage(v_coverages,
-                                     gl_FrontFacing TEXTURE_CONTEXT_FORWARD);
-    pixelLocalStoreANGLE(coverageCount, uint4(floatBitsToUint(coverage)));
-}
+layout(binding=0,r32ui)uniform highp upixelLocalANGLE m0;
+#ifdef FC
+void main(){float n=uintBitsToFloat(pixelLocalLoadANGLE(m0).x);n+=v6(I,gl_FrontFacing g1);pixelLocalStoreANGLE(m0,Q(floatBitsToUint(n)));}
 #endif
-
-#ifdef EXPORTED_ATLAS_FEATHERED_STROKE
-void main()
-{
-    float coverage = uintBitsToFloat(pixelLocalLoadANGLE(coverageCount).x);
-    coverage = max(coverage, eval_feathered_stroke(v_coverages));
-    pixelLocalStoreANGLE(coverageCount, uint4(floatBitsToUint(coverage)));
-}
+#ifdef MC
+void main(){float n=uintBitsToFloat(pixelLocalLoadANGLE(m0).x);n=max(n,v4(I));pixelLocalStoreANGLE(m0,Q(floatBitsToUint(n)));}
 #endif
-
-#elif defined(EXPORTED_ATLAS_RENDER_TARGET_R32I_ATOMIC_TEXTURE)
-
-// Store coverage as 16:16 fixed point in an r32i texture, which we manipulate
-// with atomics.
-layout(binding = 0, r32i) uniform highp coherent iimage2D _atlasImage;
-ivec2 image_coord() { return ivec2(floor(_fragCoord)); }
-int fixedpoint_coverage(float coverage)
-{
-    return int(coverage * ATLAS_R32I_FIXED_POINT_FACTOR);
-}
-
-#ifdef EXPORTED_ATLAS_FEATHERED_FILL
-void main()
-{
-    int coverage = fixedpoint_coverage(
-        signed_fill_coverage(v_coverages,
-                             gl_FrontFacing TEXTURE_CONTEXT_FORWARD));
-    imageAtomicAdd(_atlasImage, image_coord(), coverage);
-}
+#elif defined(OD)
+layout(binding=0,r32i)uniform highp coherent iimage2D V8;ivec2 Ad(){return ivec2(floor(S));}int Bd(float n){return int(n*Ec);}
+#ifdef FC
+void main(){int n=Bd(v6(I,gl_FrontFacing g1));imageAtomicAdd(V8,Ad(),n);}
 #endif
-
-#ifdef EXPORTED_ATLAS_FEATHERED_STROKE
-void main()
-{
-    int coverage = fixedpoint_coverage(eval_feathered_stroke(v_coverages));
-    imageAtomicMax(_atlasImage, image_coord(), coverage);
-}
+#ifdef MC
+void main(){int n=Bd(v4(I));imageAtomicMax(V8,Ad(),n);}
 #endif
-
-#elif defined(EXPORTED_ATLAS_RENDER_TARGET_RGBA8_UNORM)
-
-// We don't have any extensions to count high precision coverage. (This is very
-// rare.). Just split up coverage across rgba8 components and hope for the best.
-
-#ifdef EXPORTED_ATLAS_FEATHERED_FILL
-FRAG_DATA_MAIN_WITH_CLOCKWISE(half4, EXPORTED_atlasFillFragmentMain)
-{
-    VARYING_UNPACK(v_coverages, float4);
-    half coverage =
-        signed_fill_coverage(v_coverages, _clockwise TEXTURE_CONTEXT_FORWARD);
-    // i.e., is abs(coverage) ~= FEATHER(1), allowing for some sub-8-bit slop in
-    // the texture unit performing a clamp to edge.
-    if (abs(coverage) > MAX_FEATHER - 1e-3)
-    {
-        // All the "fan triangles" in a feather have solid coverage. This is a
-        // substantial number of triangles, so we dedicate 2 channels to
-        // counting solid coverage (i.e, +1 or -1). These channels are also much
-        // slower to overflow, so it preserves a basic skeleton of the feather
-        // when the fractional channels overflow.
-        EMIT_FRAG_DATA(coverage > .0
-                           // B counts integer, positive coverage.
-                           ? make_half4(.0, .0, 1. / 255., .0)
-                           // A counts integer, negative coverage.
-                           : make_half4(.0, .0, .0, 1. / 255.));
-    }
-    else
-    {
-        coverage *= 1. / ATLAS_UNORM8_COVERAGE_SCALE_FACTOR;
-        EMIT_FRAG_DATA(make_half4(
-            max(coverage, .0),  // R counts fractional, positive coverage.
-            max(-coverage, .0), // G counts fractional, negative coverage.
-            .0,
-            .0));
-    }
-}
-#endif // @ATLAS_FEATHERED_FILL
-
-#ifdef EXPORTED_ATLAS_FEATHERED_STROKE
-FRAG_DATA_MAIN(half4, EXPORTED_atlasStrokeFragmentMain)
-{
-    VARYING_UNPACK(v_coverages, float4);
-    half coverage = eval_feathered_stroke(v_coverages TEXTURE_CONTEXT_FORWARD);
-    // Strokes only have positive coverage, and since we only need to saturate
-    // the max for stroking, we can just use the R channel.
-    coverage *= 1. / ATLAS_UNORM8_COVERAGE_SCALE_FACTOR;
-    EMIT_FRAG_DATA(make_half4(coverage, .0, .0, .0));
-}
-#endif // @ATLAS_FEATHERED_STROKE
-
+#elif defined(ME)
+#ifdef FC
+q6(i,NE){B(I,g);d n=v6(I,r6 g1);if(abs(n)>qf-1e-3){G2(n>.0?B0(.0,.0,1./255.,.0):B0(.0,.0,.0,1./255.));}else{n*=1./ka;G2(B0(max(n,.0),max(-n,.0),.0,.0));}}
+#endif
+#ifdef MC
+Y2(i,OE){B(I,g);d n=v4(I g1);n*=1./ka;G2(B0(n,.0,.0,.0));}
+#endif
 #else
-
-// This is the ideal case. We have full support for floating point color
-// buffers, including blending. Render to float and let the fixed function blend
-// hardware count the coverage.
-
-#ifdef EXPORTED_ATLAS_FEATHERED_FILL
-FRAG_DATA_MAIN_WITH_CLOCKWISE(float, EXPORTED_atlasFillFragmentMain)
-{
-    VARYING_UNPACK(v_coverages, float4);
-    EMIT_FRAG_DATA(
-        signed_fill_coverage(v_coverages, _clockwise TEXTURE_CONTEXT_FORWARD));
-}
+#ifdef FC
+q6(float,NE){B(I,g);G2(v6(I,r6 g1));}
 #endif
-
-#ifdef EXPORTED_ATLAS_FEATHERED_STROKE
-FRAG_DATA_MAIN(float, EXPORTED_atlasStrokeFragmentMain)
-{
-    VARYING_UNPACK(v_coverages, float4);
-    EMIT_FRAG_DATA(eval_feathered_stroke(v_coverages TEXTURE_CONTEXT_FORWARD));
-}
+#ifdef MC
+Y2(float,OE){B(I,g);G2(v4(I g1));}
 #endif
-
 #endif
-
-#endif // FRAGMENT
+#endif
 )===";
 } // namespace glsl
 } // namespace gpu

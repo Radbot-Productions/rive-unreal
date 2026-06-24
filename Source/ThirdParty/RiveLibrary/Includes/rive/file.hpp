@@ -40,6 +40,7 @@ class ScrollPhysics;
 class ViewModelRuntime;
 class BindableArtboard;
 class ScriptingVM;
+class ScriptedInterpolator;
 
 ///
 /// Tracks the success/failure result when importing a Rive file.
@@ -98,6 +99,9 @@ public:
     /// @param result is an optional status result.
     /// @param assetLoader is an optional helper to load assets which
     /// cannot be found in-band.
+    /// @param vm is an optional ScriptingVM that should be made per file. This
+    /// is the environment that any script instances in the file will be
+    /// created in.
     /// @returns a pointer to the file, or null on failure.
     static rcp<File> import(Span<const uint8_t> data,
                             Factory* factory,
@@ -188,6 +192,7 @@ public:
             instancesMap) const;
     void completeViewModelInstance(
         rcp<ViewModelInstance> viewModelInstance) const;
+    void completeViewModelProperties(ViewModelInstance* viewModelInstance);
     const std::vector<DataEnum*>& enums() const;
     rcp<FileAsset> asset(size_t index);
 
@@ -254,6 +259,7 @@ public:
 
 private:
     ImportResult read(BinaryReader&, const RuntimeHeader&);
+    std::unique_ptr<ArtboardInstance> instanceArtboard(Artboard* ab) const;
 
     /// The file's backboard. All Rive files have a single backboard
     /// where the artboards live.
@@ -265,6 +271,7 @@ private:
     std::vector<DataConverter*> m_DataConverters;
 
     std::vector<KeyFrameInterpolator*> m_keyframeInterpolators;
+    std::vector<ScriptedInterpolator*> m_scriptedInterpolators;
     std::vector<ScrollPhysics*> m_scrollPhysics;
 
     /// List of artboards in the file. Each artboard encapsulates a set of

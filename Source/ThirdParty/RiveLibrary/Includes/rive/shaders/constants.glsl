@@ -149,22 +149,27 @@
 #define FEATHER_TEXTURE_IDX 10
 #define ATLAS_TEXTURE_IDX 11
 #define IMAGE_TEXTURE_IDX 12
-#define IMAGE_SAMPLER_IDX 13
-#define DST_COLOR_TEXTURE_IDX 14
-#define DEFAULT_BINDINGS_SET_SIZE 15
+#define DST_COLOR_TEXTURE_IDX 13
+#define DEFAULT_BINDINGS_SET_SIZE 14
+
+// WebGPU needs image sampler index as a separate value.
+#define WEBGPU_IMAGE_SAMPLER_IDX 14
+#define WEBGPU_BINDINGS_SET_SIZE 15
 
 // Metal doesn't allow us to bind buffers index 0 or 1. Offset them by 2.
 #define METAL_BUFFER_IDX(IDX) (2 + IDX)
 
-// Samplers are accessed at the same index as their corresponding texture, so we
-// put them in a separate binding set.
-#define IMMUTABLE_SAMPLER_BINDINGS_SET 2
-
 // PLS textures are accessed at the same index as their PLS planes, so we put
 // them in a separate binding set.
-#define PLS_TEXTURE_BINDINGS_SET 3
+#define PLS_TEXTURE_BINDINGS_SET 2
 
-#define BINDINGS_SET_COUNT 4
+// In WebGPU there needs to be an additional binding set for samplers, because
+// there is no way to bind a texture and sampler to the same binding index in
+// the same binding set like there is in Vulkan.
+#define WEBGPU_SAMPLER_BINDINGS_SET 3
+
+#define VULKAN_BINDINGS_SET_COUNT 3
+#define WEBGPU_BINDINGS_SET_COUNT 4
 
 // Index of each pixel local storage plane.
 #define COLOR_PLANE_IDX 0
@@ -258,15 +263,6 @@
 #define BLEND_COLOR_VALID_BIT (1u << CLOCKWISE_COVERAGE_BIT_COUNT)
 #define CLOCKWISE_COVERAGE_PREFIX_ONE_VALUE (BLEND_COLOR_VALID_BIT << 1u)
 
-// Vendor IDs for driver workarounds.
-#define VULKAN_VENDOR_AMD 0x1002u
-#define VULKAN_VENDOR_IMG_TEC 0x1010u
-#define VULKAN_VENDOR_NVIDIA 0x10DEu
-#define VULKAN_VENDOR_ARM 0x13B5u
-#define VULKAN_VENDOR_QUALCOMM 0x5143u
-#define VULKAN_VENDOR_INTEL 0x8086u
-#define VULKAN_VENDOR_SAMSUNG 0x144d
-
 // Indices for SPIRV specialization constants (used in lieu of #defines in
 // Vulkan.)
 #define CLIPPING_SPECIALIZATION_IDX 0
@@ -278,9 +274,12 @@
 #define HSL_BLEND_MODES_SPECIALIZATION_IDX 6
 #define DITHER_SPECIALIZATION_IDX 7
 #define CLOCKWISE_FILL_SPECIALIZATION_IDX 8
-#define BORROWED_COVERAGE_PASS_SPECIALIZATION_IDX 9
-#define VULKAN_VENDOR_ID_SPECIALIZATION_IDX 10
-#define SPECIALIZATION_COUNT 11
+#define NESTED_CLIP_UPDATE_ONLY_IDX 9
+#define BORROWED_COVERAGE_PASS_SPECIALIZATION_IDX 10
+#define STORE_COLOR_CLEAR_SPECIALIZATION_IDX 11
+#define LOAD_COLOR_FROM_DST_TEXTURE_SPECIALIZATION_IDX 12
+#define VULKAN_VENDOR_ARM_SPECIALIZATION_IDX 13
+#define SPECIALIZATION_COUNT 14
 
 // When rendering to an r32i feather atlas, use 16:16 fixed point.
 #define ATLAS_R32I_FIXED_POINT_FACTOR 65536.
@@ -290,3 +289,13 @@
 // Throwing away the bottom 3 bits seems to be the best tradeoff, based on our
 // golden image suite.
 #define ATLAS_UNORM8_COVERAGE_SCALE_FACTOR 8.
+
+// Buffers used to back PLS images are swizzled into square tiles for better
+// cache locality.
+// Buffer sizes must be rounded up to a multiples of BUFFER_IMAGE_TILE_SIZE in
+// both width and height.
+#define BUFFER_IMAGE_TILE_SIZE 32u
+#define BUFFER_IMAGE_TILE_SIZE_LOG2 5u
+#ifdef __cplusplus
+static_assert(BUFFER_IMAGE_TILE_SIZE == 1u << BUFFER_IMAGE_TILE_SIZE_LOG2);
+#endif

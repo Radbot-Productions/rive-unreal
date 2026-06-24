@@ -5,686 +5,392 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char glsl[] = R"===(/*
- * Copyright 2023 Rive
- */
-
-// This header provides GLSL-specific #defines and declarations that enable our
-// shaders to be compiled on MSL and GLSL both.
-
-#define GLSL
-
-#ifndef EXPORTED_GLSL_VERSION
-// In "#version 320 es", Qualcomm incorrectly substitutes __VERSION__ to 300.
-// @GLSL_VERSION is a workaround for this.
-#define EXPORTED_GLSL_VERSION  __VERSION__
+const char glsl[] = R"===(#define cc
+#ifndef EC
+#define EC __VERSION__
 #endif
-
-#define float2  vec2
-#define float3  vec3
-#define packed_float3  vec3
-#define float4  vec4
-
-#define half  mediump float
-#define half2  mediump vec2
-#define half3  mediump vec3
-#define half4  mediump vec4
-#define half3x3  mediump mat3x3
-#define half2x3  mediump mat2x3
-#define half4x4  mediump mat4x4
-
-#define int2  ivec2
-#define int3  ivec3
-#define int4  ivec4
-
-#define short  mediump int
-#define short2  mediump ivec2
-#define short3  mediump ivec3
-#define short4  mediump ivec4
-
-#define uint2  uvec2
-#define uint3  uvec3
-#define uint4  uvec4
-
-#define ushort  mediump uint
-#define ushort2  mediump uvec2
-#define ushort3  mediump uvec3
-#define ushort4  mediump uvec4
-
-#define bool2  bvec2
-#define bool3  bvec3
-#define bool4  bvec4
-
-#define float2x2  mat2
-
-#define INLINE
-#define OUT(ARG_TYPE)  out ARG_TYPE
-#define INOUT(ARG_TYPE)  inout ARG_TYPE
-
+#define c vec2
+#define V vec3
+#define L3 vec3
+#define g vec4
+#define d mediump float
+#define D mediump vec2
+#define r mediump vec3
+#define i mediump vec4
+#define V6 mediump mat3x3
+#define W6 mediump mat2x3
+#define h5 mediump mat4x4
+#define U ivec2
+#define Z5 ivec4
+#define W0 uvec2
+#define Q uvec4
+#define X mediump uint
+#define E4 bvec2
+#define n6 bvec3
+#define w7 bvec4
+#define Z mat2
+#define e
+#define e1(g2) out g2
+#define T4(g2) inout g2
 #ifdef GL_ANGLE_base_vertex_base_instance_shader_builtin
-#extension GL_ANGLE_base_vertex_base_instance_shader_builtin : require
+#extension GL_ANGLE_base_vertex_base_instance_shader_builtin:require
 #endif
-
-#ifdef EXPORTED_ENABLE_KHR_BLEND
-#extension GL_KHR_blend_equation_advanced : require
+#ifdef ZD
+#extension GL_KHR_blend_equation_advanced:require
 #endif
-
-// Enable the necessary extensions for rendering the feather atlas.
-// NOTE: We do this here instead of render_atlas.glsl because extensions have to
-// be declared before any code.
-#ifdef EXPORTED_ATLAS_RENDER_TARGET_R32UI_FRAMEBUFFER_FETCH
-#extension GL_EXT_shader_framebuffer_fetch : require
-#elif defined(EXPORTED_ATLAS_RENDER_TARGET_R8_PLS_EXT)
-#extension GL_EXT_shader_pixel_local_storage : require
+#ifdef MD
+#extension GL_EXT_shader_framebuffer_fetch:require
+#elif defined(ND)
+#extension GL_EXT_shader_pixel_local_storage:require
 #elif defined(EXPORTED_ATLAS_RENDER_TARGET_R32UI_PLS_ANGLE)
-#extension GL_ANGLE_shader_pixel_local_storage : require
-#elif defined(EXPORTED_ATLAS_RENDER_TARGET_R32I_ATOMIC_TEXTURE)
+#extension GL_ANGLE_shader_pixel_local_storage:require
+#elif defined(OD)
 #ifdef GL_ARB_shader_image_load_store
-#extension GL_ARB_shader_image_load_store : require
+#extension GL_ARB_shader_image_load_store:require
 #endif
 #ifdef GL_OES_shader_image_atomic
-#extension GL_OES_shader_image_atomic : require
+#extension GL_OES_shader_image_atomic:require
 #endif
 #endif
-
-// clang-format off
-#if defined(EXPORTED_RENDER_MODE_MSAA) && defined(EXPORTED_ENABLE_CLIP_RECT) && defined(GL_ES) && !defined(EXPORTED_DISABLE_CLIP_DISTANCE_FOR_UBERSHADERS)
+#if defined(BB)&&defined(AB)&&defined(GL_ES)&&!defined(EE)
 #ifdef GL_EXT_clip_cull_distance
-#extension GL_EXT_clip_cull_distance : require
+#extension GL_EXT_clip_cull_distance:require
 #elif defined(GL_ANGLE_clip_cull_distance)
-#extension GL_ANGLE_clip_cull_distance : require
+#extension GL_ANGLE_clip_cull_distance:require
 #endif
-#endif // RENDER_MODE_MSAA && ENABLE_CLIP_RECT && GL_ES && !DISABLE_CLIP_DISTANCE_FOR_UBERSHADERS
-// clang-format on
-
-#if EXPORTED_GLSL_VERSION >= 310
-#define UNIFORM_BLOCK_BEGIN(IDX, NAME)                                          \
-    layout(binding = IDX, std140) uniform NAME                                 \
-    {
-#else
-#define UNIFORM_BLOCK_BEGIN(IDX, NAME)                                          \
-    layout(std140) uniform NAME                                                \
-    {
 #endif
-// clang-format barrier... Otherwise it tries to merge this #define into the
-// above macro...
-#define UNIFORM_BLOCK_END(NAME)                                                 \
-    }                                                                          \
-    NAME;
-
-#define ATTR_BLOCK_BEGIN(NAME)
-#define ATTR(IDX, TYPE, NAME)  layout(location = IDX) in TYPE NAME
-#define ATTR_BLOCK_END
-#define ATTR_LOAD(A, B, C, D)
-#define ATTR_UNPACK(ID, attrs, NAME, TYPE)
-
-#ifdef EXPORTED_VERTEX
-#if EXPORTED_GLSL_VERSION >= 310
-#define VARYING(IDX, TYPE, NAME)  layout(location = IDX) out TYPE NAME
+#if EC>=310
+#define m6(f,a) layout(binding=f,std140)uniform a{
 #else
-#define VARYING(IDX, TYPE, NAME)  out TYPE NAME
+#define m6(f,a) layout(std140)uniform a{
+#endif
+#define v7(a) }a;
+#define A1(a)
+#define p0(f,W,a) layout(location=f)in W a
+#define B1
+#define q0(O8,G,a,W)
+#ifdef CB
+#if EC>=310
+#define c0(f,W,a) layout(location=f)out W a
+#else
+#define c0(f,W,a) out W a
 #endif
 #else
-#if EXPORTED_GLSL_VERSION >= 310
-#define VARYING(IDX, TYPE, NAME)  layout(location = IDX) in TYPE NAME
+#if EC>=310
+#define c0(f,W,a) layout(location=f)in W a
 #else
-#define VARYING(IDX, TYPE, NAME)  in TYPE NAME
+#define c0(f,W,a) in W a
 #endif
 #endif
-#define FLAT  flat
-#define VARYING_BLOCK_BEGIN
-#define VARYING_BLOCK_END
-
-// clang-format off
-#ifdef EXPORTED_TARGET_VULKAN
-   // Since Vulkan is compiled offline and not all platforms support noperspective, don't use it.
-#define NO_PERSPECTIVE
+#define R4 flat
+#define h2
+#define a2
+#ifdef VB
+#define J0
 #else
 #ifdef GL_NV_shader_noperspective_interpolation
-#extension GL_NV_shader_noperspective_interpolation : require
-#define NO_PERSPECTIVE  noperspective
+#extension GL_NV_shader_noperspective_interpolation:require
+#define J0 noperspective
 #else
-#define NO_PERSPECTIVE
+#define J0
 #endif
 #endif
-// clang-format on
-
-#ifdef EXPORTED_VERTEX
-#define VERTEX_TEXTURE_BLOCK_BEGIN
-#define VERTEX_TEXTURE_BLOCK_END
+#ifdef CB
+#define R3
+#define S3
 #endif
-
-#ifdef EXPORTED_FRAGMENT
-#define FRAG_TEXTURE_BLOCK_BEGIN
-#define FRAG_TEXTURE_BLOCK_END
+#ifdef FB
+#define B3
+#define C3
 #endif
-
-#define DYNAMIC_SAMPLER_BLOCK_BEGIN
-#define DYNAMIC_SAMPLER_BLOCK_END
-
-#ifdef EXPORTED_TARGET_VULKAN
-#define TEXTURE_RGBA32UI(SET, IDX, NAME)                                        \
-    layout(set = SET, binding = IDX) uniform highp utexture2D NAME
-#define TEXTURE_RGBA32F(SET, IDX, NAME)                                         \
-    layout(set = SET, binding = IDX) uniform highp texture2D NAME
-#define TEXTURE_RGBA8(SET, IDX, NAME)                                           \
-    layout(set = SET, binding = IDX) uniform mediump texture2D NAME
-#define TEXTURE_R16F(SET, IDX, NAME)                                            \
-    layout(binding = IDX) uniform mediump texture2D NAME
-#define TEXTURE_R32I(SET, IDX, NAME)                                            \
-    layout(binding = IDX) uniform highp itexture2D NAME
-#define TEXTURE_R32UI(SET, IDX, NAME)                                           \
-    layout(binding = IDX) uniform highp utexture2D NAME
-#if defined(EXPORTED_FRAGMENT) && defined(EXPORTED_RENDER_MODE_MSAA)
-#endif // @FRAGMENT && @RENDER_MODE_MSAA
-#elif EXPORTED_GLSL_VERSION >= 310
-#define TEXTURE_RGBA32UI(SET, IDX, NAME)                                        \
-    layout(binding = IDX) uniform highp usampler2D NAME
-#define TEXTURE_RGBA32F(SET, IDX, NAME)                                         \
-    layout(binding = IDX) uniform highp sampler2D NAME
-#define TEXTURE_RGBA8(SET, IDX, NAME)                                           \
-    layout(binding = IDX) uniform mediump sampler2D NAME
-#define TEXTURE_R16F(SET, IDX, NAME)                                            \
-    layout(binding = IDX) uniform mediump sampler2D NAME
-#define TEXTURE_R32I(SET, IDX, NAME)                                            \
-    layout(binding = IDX) uniform highp isampler2D NAME
-#define TEXTURE_R32UI(SET, IDX, NAME)                                           \
-    layout(binding = IDX) uniform highp usampler2D NAME
+#define a5
+#define c5
+#ifdef VB
+#define D4(M,f,a) layout(set=M,binding=f)uniform highp utexture2D a
+#define e5(M,f,a) layout(set=M,binding=f)uniform highp texture2D a
+#define X2(M,f,a) layout(set=M,binding=f)uniform mediump texture2D a
+#define k5(M,f,a) layout(binding=f)uniform mediump texture2D a
+#if defined(FB)&&defined(BB)
+#endif
+#elif EC>=310
+#define D4(M,f,a) layout(binding=f)uniform highp usampler2D a
+#define e5(M,f,a) layout(binding=f)uniform highp sampler2D a
+#define X2(M,f,a) layout(binding=f)uniform mediump sampler2D a
+#define k5(M,f,a) layout(binding=f)uniform mediump sampler2D a
 #else
-#define TEXTURE_RGBA32UI(SET, IDX, NAME)  uniform highp usampler2D NAME
-#define TEXTURE_RGBA32F(SET, IDX, NAME)  uniform highp sampler2D NAME
-#define TEXTURE_RGBA8(SET, IDX, NAME)  uniform mediump sampler2D NAME
-#define TEXTURE_R16F(SET, IDX, NAME)  uniform mediump sampler2D NAME
-#define TEXTURE_R32I(SET, IDX, NAME)  uniform highp isampler2D NAME
-#define TEXTURE_R32UI(SET, IDX, NAME)  uniform highp usampler2D NAME
+#define D4(M,f,a) uniform highp usampler2D a
+#define e5(M,f,a) uniform highp sampler2D a
+#define X2(M,f,a) uniform mediump sampler2D a
+#define k5(M,f,a) uniform mediump sampler2D a
 #endif
-
-#ifdef EXPORTED_TARGET_VULKAN
-#define SAMPLER_LINEAR(TEXTURE_IDX, NAME)                                       \
-    layout(set = IMMUTABLE_SAMPLER_BINDINGS_SET, binding = TEXTURE_IDX)        \
-        uniform mediump sampler NAME;
-#define SAMPLER_MIPMAP(TEXTURE_IDX, NAME)                                       \
-    layout(set = IMMUTABLE_SAMPLER_BINDINGS_SET, binding = TEXTURE_IDX)        \
-        uniform mediump sampler NAME;
-#define SAMPLER_DYNAMIC(SET, IDX, NAME)                                         \
-    layout(set = SET, binding = IDX) uniform mediump sampler NAME;
-#define TEXTURE_SAMPLE(NAME, SAMPLER_NAME, COORD)                               \
-    texture(sampler2D(NAME, SAMPLER_NAME), COORD)
-#define TEXTURE_SAMPLE_LOD(NAME, SAMPLER_NAME, COORD, LOD)                      \
-    textureLod(sampler2D(NAME, SAMPLER_NAME), COORD, LOD)
-#define TEXTURE_SAMPLE_LODBIAS(NAME, SAMPLER_NAME, COORD, LODBIAS)              \
-    texture(sampler2D(NAME, SAMPLER_NAME), COORD, LODBIAS)
-#define TEXTURE_SAMPLE_GRAD(NAME, SAMPLER_NAME, COORD, DDX, DDY)                \
-    textureGrad(sampler2D(NAME, SAMPLER_NAME), COORD, DDX, DDY)
-#if defined(EXPORTED_FRAGMENT) && defined(EXPORTED_RENDER_MODE_MSAA)
-#extension GL_OES_sample_variables : require
-#endif // @FRAGMENT && @RENDER_MODE_MSAA
-#else  // @TARGET_VULKAN -> !@TARGET_VULKAN
-// SAMPLER_LINEAR and SAMPLER_MIPMAP are no-ops because in GL, sampling
-// parameters are API-level state tied to the texture.
-#define SAMPLER_LINEAR(TEXTURE_IDX, NAME)
-#define SAMPLER_MIPMAP(TEXTURE_IDX, NAME)
-#define SAMPLER_DYNAMIC(SET, IDX, NAME)
-#define TEXTURE_SAMPLE(NAME, SAMPLER_NAME, COORD)  texture(NAME, COORD)
-#define TEXTURE_SAMPLE_LOD(NAME, SAMPLER_NAME, COORD, LOD)                      \
-    textureLod(NAME, COORD, LOD)
-#define TEXTURE_SAMPLE_LODBIAS(NAME, SAMPLER_NAME, COORD, LODBIAS)              \
-    texture(NAME, COORD, LODBIAS)
-#define TEXTURE_SAMPLE_GRAD(NAME, SAMPLER_NAME, COORD, DDX, DDY)                \
-    textureGrad(NAME, COORD, DDX, DDY)
-#endif // !@TARGET_VULKAN
-
-#define TEXTURE_SAMPLE_DYNAMIC(TEXTURE, SAMPLER_NAME, COORD)                    \
-    TEXTURE_SAMPLE(TEXTURE, SAMPLER_NAME, COORD)
-#define TEXTURE_SAMPLE_DYNAMIC_LOD(TEXTURE, SAMPLER_NAME, COORD, LOD)           \
-    TEXTURE_SAMPLE_LOD(TEXTURE, SAMPLER_NAME, COORD, LOD)
-#define TEXTURE_SAMPLE_DYNAMIC_LODBIAS(TEXTURE, SAMPLER_NAME, COORD, LODBIAS)   \
-    TEXTURE_SAMPLE_LODBIAS(TEXTURE, SAMPLER_NAME, COORD, LODBIAS)
-
-// Polyfill the feather texture as a sampler2D since ES doesn't support
-// sampler1DArray. This is why the macro needs "ARRAY_INDEX_NORMALIZED": when
-// polyfilled as a 2D texture, the "array index" needs to be a 0..1 normalized
-// y coordinate instead of the literal array index.
-#define TEXTURE_R16F_1D_ARRAY(SET, IDX, NAME)  TEXTURE_R16F(SET, IDX, NAME)
-// clang-format off
-// Clang formatting on this line trips up the Qualcomm compiler.
-#define TEXTURE_SAMPLE_LOD_1D_ARRAY(NAME, SAMPLER_NAME, X, ARRAY_INDEX, ARRAY_INDEX_NORMALIZED, LOD)                                        \
-    TEXTURE_SAMPLE_LOD(NAME, SAMPLER_NAME, float2(X, ARRAY_INDEX_NORMALIZED), LOD)
-// clang-format on
-
-#define TEXTURE_RG32UI(SET, IDX, NAME)  TEXTURE_RGBA32UI(SET, IDX, NAME)
-
-#define TEXTURE_CONTEXT_DECL
-
-#define TEXTURE_CONTEXT_FORWARD
-#define TEXEL_FETCH(NAME, COORD)  texelFetch(NAME, COORD, 0)
-
-#ifdef EXPORTED_TARGET_VULKAN
-#define TEXTURE_GATHER(NAME, SAMPLER_NAME, COORD, TEXTURE_INVERSE_SIZE)         \
-    textureGather(sampler2D(NAME, SAMPLER_NAME),                               \
-                  (COORD) * (TEXTURE_INVERSE_SIZE))
-#elif EXPORTED_GLSL_VERSION >= 310
-#define TEXTURE_GATHER(NAME, SAMPLER_NAME, COORD, TEXTURE_INVERSE_SIZE)         \
-    textureGather(NAME, (COORD) * (TEXTURE_INVERSE_SIZE))
+#ifdef VB
+#define o6(M,f,a) layout(set=M,binding=f)uniform mediump sampler a;
+#ifdef BF
+#define X3(x7,a) layout(set=Af,binding=x7)uniform mediump sampler a;
+#define U3(a) o6(Z4,zf,a)
 #else
-#define TEXTURE_GATHER(NAME, SAMPLER_NAME, COORD, TEXTURE_INVERSE_SIZE)         \
-    TEXTURE_GATHER_MATRIX(NAME, COORD, .x)
+#define X3(x7,a) layout(set=a3,binding=x7)uniform mediump sampler a;
+#define U3(a) o6(Z4,T3,a)
 #endif
-
-#define VERTEX_STORAGE_BUFFER_BLOCK_BEGIN
-#define VERTEX_STORAGE_BUFFER_BLOCK_END
-
-#define FRAG_STORAGE_BUFFER_BLOCK_BEGIN
-#define FRAG_STORAGE_BUFFER_BLOCK_END
-
-#ifdef EXPORTED_DISABLE_SHADER_STORAGE_BUFFERS
-
-#define STORAGE_BUFFER_U32x2(IDX, GLSL_STRUCT_NAME, NAME)                       \
-    TEXTURE_RGBA32UI(PER_FLUSH_BINDINGS_SET, IDX, NAME)
-#define STORAGE_BUFFER_U32x4(IDX, GLSL_STRUCT_NAME, NAME)                       \
-    TEXTURE_RG32UI(PER_FLUSH_BINDINGS_SET, IDX, NAME)
-#define STORAGE_BUFFER_F32x4(IDX, GLSL_STRUCT_NAME, NAME)                       \
-    TEXTURE_RGBA32F(PER_FLUSH_BINDINGS_SET, IDX, NAME)
-#define STORAGE_BUFFER_LOAD4(NAME, I)                                           \
-    TEXEL_FETCH(                                                               \
-        NAME,                                                                  \
-        int2((I) & STORAGE_TEXTURE_MASK_X, (I) >> STORAGE_TEXTURE_SHIFT_Y))
-#define STORAGE_BUFFER_LOAD2(NAME, I)                                           \
-    TEXEL_FETCH(                                                               \
-        NAME,                                                                  \
-        int2((I) & STORAGE_TEXTURE_MASK_X, (I) >> STORAGE_TEXTURE_SHIFT_Y))    \
-        .xy
-
+#define r5(a,p,l) texture(sampler2D(a,p),l)
+#define m2(a,p,l,X0) textureLod(sampler2D(a,p),l,X0)
+#define v5(a,p,l,P1) texture(sampler2D(a,p),l,P1)
+#if defined(FB)&&defined(BB)
+#extension GL_OES_sample_variables:require
+#endif
 #else
-
+#define X3(x7,a)
+#define o6(M,f,a)
+#define U3(a)
+#define r5(a,p,l) texture(a,l)
+#define m2(a,p,l,X0) textureLod(a,l,X0)
+#define v5(a,p,l,P1) texture(a,l,P1)
+#endif
+#define g8(h0,p,l) r5(h0,p,l)
+#define Q6(h0,p,l,X0) m2(h0,p,l,X0)
+#define y7(h0,p,l,P1) v5(h0,p,l,P1)
+#define f6(M,f,a) k5(M,f,a)
+#define U6(a,p,q,p6,Q8,X0) m2(a,p,c(q,Q8),X0)
+#define vg(M,f,a) D4(M,f,a)
+#define F3
+#define g1
+#define v1(a,l) texelFetch(a,l,0)
+#ifdef VB
+#elif EC>=310
+#else
+#endif
+#define A4
+#define B4
+#define N3
+#define O3
+#ifdef CF
+#define J5(f,y1,a) D4(a3,f,a)
+#define F4(f,y1,a) vg(a3,f,a)
+#define K5(f,y1,a) e5(a3,f,a)
+#define P0(a,y0) v1(a,U((y0)&sc,(y0)>>rc))
+#define L5(a,y0) v1(a,U((y0)&sc,(y0)>>rc)).xy
+#else
 #ifdef GL_ARB_shader_storage_buffer_object
-#extension GL_ARB_shader_storage_buffer_object : require
+#extension GL_ARB_shader_storage_buffer_object:require
 #endif
-#define STORAGE_BUFFER_U32x2(IDX, GLSL_STRUCT_NAME, NAME)                       \
-    layout(std430, binding = IDX) readonly buffer GLSL_STRUCT_NAME             \
-    {                                                                          \
-        uint2 _values[];                                                       \
-    }                                                                          \
-    NAME
-#define STORAGE_BUFFER_U32x4(IDX, GLSL_STRUCT_NAME, NAME)                       \
-    layout(std430, binding = IDX) readonly buffer GLSL_STRUCT_NAME             \
-    {                                                                          \
-        uint4 _values[];                                                       \
-    }                                                                          \
-    NAME
-#define STORAGE_BUFFER_F32x4(IDX, GLSL_STRUCT_NAME, NAME)                       \
-    layout(std430, binding = IDX) readonly buffer GLSL_STRUCT_NAME             \
-    {                                                                          \
-        float4 _values[];                                                      \
-    }                                                                          \
-    NAME
-#define STORAGE_BUFFER_U32_ATOMIC(IDX, GLSL_STRUCT_NAME, NAME)                  \
-    layout(std430, binding = IDX) buffer GLSL_STRUCT_NAME { uint _values[]; }  \
-    NAME
-#define STORAGE_BUFFER_LOAD4(NAME, I)  NAME._values[I]
-#define STORAGE_BUFFER_LOAD2(NAME, I)  NAME._values[I]
-#define STORAGE_BUFFER_LOAD(NAME, I)  NAME._values[I]
-#define STORAGE_BUFFER_ATOMIC_MAX(NAME, I, X)  atomicMax(NAME._values[I], X)
-#define STORAGE_BUFFER_ATOMIC_ADD(NAME, I, X)  atomicAdd(NAME._values[I], X)
-#define STORAGE_BUFFER_ATOMIC_OR(NAME, I, X)  atomicOr(NAME._values[I], X)
-
-#endif // DISABLE_SHADER_STORAGE_BUFFERS
-
-// Define macros for implementing pixel local storage based on available
-// extensions.
-#ifdef EXPORTED_PLS_IMPL_ANGLE
-
-#extension GL_ANGLE_shader_pixel_local_storage : require
-
-#define PLS_BLOCK_BEGIN
-#define PLS_DECL4F(IDX, NAME)                                                   \
-    layout(binding = IDX, rgba8) uniform lowp pixelLocalANGLE NAME
-#define PLS_DECLUI(IDX, NAME)                                                   \
-    layout(binding = IDX, r32ui) uniform highp upixelLocalANGLE NAME
-#define PLS_BLOCK_END
-
-#define PLS_LOAD4F(PLANE)  pixelLocalLoadANGLE(PLANE)
-#define PLS_LOADUI(PLANE)  pixelLocalLoadANGLE(PLANE).x
-#define PLS_STORE4F(PLANE, VALUE)  pixelLocalStoreANGLE(PLANE, VALUE)
-#define PLS_STOREUI(PLANE, VALUE)  pixelLocalStoreANGLE(PLANE, uvec4(VALUE))
-
-#define PLS_PRESERVE_4F(PLANE)
-#define PLS_PRESERVE_UI(PLANE)
-
-#define PLS_INTERLOCK_BEGIN
-#define PLS_INTERLOCK_END
-
-#endif // PLS_IMPL_ANGLE
-
-#ifdef EXPORTED_PLS_IMPL_EXT_NATIVE
-
-#ifdef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-// fixedFunctionColorOutput renders directly to the framebuffer, which requires
-// EXT_shader_pixel_local_storage2.
-#extension GL_EXT_shader_pixel_local_storage2 : require
+#define J5(f,y1,a) layout(std430,binding=f)readonly buffer y1{W0 X1[];}a
+#define F4(f,y1,a) layout(std430,binding=f)readonly buffer y1{Q X1[];}a
+#define K5(f,y1,a) layout(std430,binding=f)readonly buffer y1{g X1[];}a
+#define Ea(f,y1,a) layout(std430,binding=f)buffer y1{uint X1[];}a
+#define P0(a,y0) a.X1[y0]
+#define L5(a,y0) a.X1[y0]
+#define pd(a,y0) a.X1[y0]
+#define A7(a,y0,q) atomicMax(a.X1[y0],q)
+#define Fa(a,y0,q) atomicAdd(a.X1[y0],q)
+#define wg(a,y0,q) atomicOr(a.X1[y0],q)
+#endif
+#ifdef PD
+#define m1(a) void main(){U E=ivec2(floor(S));int C0=int(L8(uvec2(E),(k.q5+(la-1u))&~(la-1u)));
+#define U1 }
+#define P3 ,int C0
+#define M1 ,C0
+#ifdef FE
+#define E2(f,a) layout(std430,set=E3,binding=f)buffer a##qd{uint X1[];}a
+#elif defined(VB)
+#define E2(f,a) layout(std430,set=E3,binding=f)coherent buffer a##qd{uint X1[];}a
 #else
-#extension GL_EXT_shader_pixel_local_storage : require
+#define E2(f,a) layout(std430,binding=f)coherent buffer a##qd{uint X1[];}a
 #endif
-
-#define PLS_BLOCK_BEGIN                                                         \
-    __pixel_localEXT PLS                                                       \
-    {
-#define PLS_DECL4F(IDX, NAME)  layout(rgba8) lowp vec4 NAME
-#define PLS_DECL4F_RGB10_A2(IDX, NAME)  layout(rgb10_a2) mediump vec4 NAME
-#define PLS_DECLUI(IDX, NAME)  layout(r32ui) highp uint NAME
-#define PLS_BLOCK_END                                                           \
-    }                                                                          \
-    ;
-
-#define PLS_LOAD4F(PLANE)  PLANE
-#define PLS_LOADUI(PLANE)  PLANE
-#define PLS_STORE4F(PLANE, VALUE)  PLANE = (VALUE)
-#define PLS_STOREUI(PLANE, VALUE)  PLANE = (VALUE)
-
-#define PLS_PRESERVE_4F(PLANE)  PLANE = PLANE
-#define PLS_PRESERVE_UI(PLANE)  PLANE = PLANE
-
-#define PLS_INTERLOCK_BEGIN
-#define PLS_INTERLOCK_END
-
-#ifdef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-// EXT_shader_pixel_local_storage2 requires explicit output format qualifiers
-// on fragment shader outputs.
-#define PLS_FRAG_COLOR_MAIN(NAME)                                               \
-    layout(location = 0, rgba8) out half4 _fragColor;                          \
-    PLS_MAIN(NAME)
-
-#define PLS_FRAG_COLOR_MAIN_WITH_IMAGE_UNIFORMS(NAME)                           \
-    layout(location = 0, rgba8) out half4 _fragColor;                          \
-    PLS_MAIN(NAME)
-#endif
-#endif
-
-#ifdef EXPORTED_PLS_IMPL_STORAGE_TEXTURE
-
+#define Ga E2
+#define T2(h) h.X1[C0]
+#define U2(h,C) h.X1[C0]=C
+#define Ha(h) unpackUnorm4x8(T2(h))
+#define Ia(h,C) U2(h,packUnorm4x8(C))
+#define W4(h,q) atomicMax(h.X1[C0],q)
+#define X4(h,q) atomicAdd(h.X1[C0],q)
+#elif defined(QD)||defined(DF)
 #ifdef GL_ARB_shader_image_load_store
-#extension GL_ARB_shader_image_load_store : require
+#extension GL_ARB_shader_image_load_store:require
 #endif
+#define m1(a) void main(){U E=ivec2(floor(S));
+#define U1 }
+#define P3 ,U E
+#define M1 ,E
+#ifdef VB
+#define Ga(f,a) layout(set=E3,binding=f,rgba8)uniform mediump coherent image2D a
+#define E2(f,a) layout(set=E3,binding=f,r32ui)uniform highp coherent uimage2D a
+#define Ja(f,a) layout(set=E3,binding=f,rgb10_a2)uniform mediump coherent image2D a
+#else
+#define Ga(f,a) layout(binding=f,rgba8)uniform mediump coherent image2D a
+#define E2(f,a) layout(binding=f,r32ui)uniform highp coherent uimage2D a
+#define Ja(f,a) layout(binding=f,rgb10_a2)uniform mediump coherent image2D a;
+#endif
+#define T2(h) imageLoad(h,E).x
+#define U2(h,C) imageStore(h,E,uvec4(C))
+#define Ha(h) imageLoad(h,E)
+#define Ia(h,C) imageStore(h,E,C)
+#define W4(h,q) imageAtomicMax(h,E,q)
+#define X4(h,q) imageAtomicAdd(h,E,q)
+#else
+#define m1(a) void main()
+#define U1
+#define P3
+#define M1
+#endif
+#ifdef EXPORTED_PLS_IMPL_ANGLE
+#extension GL_ANGLE_shader_pixel_local_storage:require
+#define J1
+#define r0(f,a) layout(binding=f,rgba8)uniform mediump pixelLocalANGLE a
+#define k1(f,a) layout(binding=f,r32ui)uniform highp upixelLocalANGLE a
+#define K1
+#define H0(h) pixelLocalLoadANGLE(h)
+#define d1(h) pixelLocalLoadANGLE(h).x
+#define v0(h,C) pixelLocalStoreANGLE(h,C)
+#define f1(h,C) pixelLocalStoreANGLE(h,uvec4(C))
+#define r2(h)
+#define Y1(h)
+#define v2
+#define w2
+#endif
+#ifdef EF
+#ifdef K
+#extension GL_EXT_shader_pixel_local_storage2:require
+#else
+#extension GL_EXT_shader_pixel_local_storage:require
+#endif
+#define J1 __pixel_localEXT n1{
+#define r0(f,a) layout(rgba8)mediump vec4 a
+#define Ka(f,a) layout(rgb10_a2)mediump vec4 a
+#define k1(f,a) layout(r32ui)highp uint a
+#define K1 };
+#define H0(h) h
+#define d1(h) h
+#define v0(h,C) h=(C)
+#define f1(h,C) h=(C)
+#define r2(h) h=h
+#define Y1(h) h=h
+#define v2
+#define w2
+#ifdef K
+#define o2(a) layout(location=0,rgba8)out i l1;m1(a)
+#define r4(a) layout(location=0,rgba8)out i l1;m1(a)
+#endif
+#endif
+#if defined(QD)||defined(PD)
+#define J1
+#define K1
+#define r0 Ga
+#define k1 E2
+#define Ka Ja
+#define H0 Ha
+#define v0 Ia
+#define d1 T2
+#define f1 U2
+#define r2(h)
+#define Y1(h)
 #if defined(GL_ARB_fragment_shader_interlock)
-#extension GL_ARB_fragment_shader_interlock : require
-#define PLS_INTERLOCK_BEGIN  beginInvocationInterlockARB()
-#define PLS_INTERLOCK_END  endInvocationInterlockARB()
+#extension GL_ARB_fragment_shader_interlock:require
+#define v2 beginInvocationInterlockARB()
+#define w2 endInvocationInterlockARB()
 #elif defined(GL_INTEL_fragment_shader_ordering)
-#extension GL_INTEL_fragment_shader_ordering : require
-#define PLS_INTERLOCK_BEGIN  beginFragmentShaderOrderingINTEL()
-#define PLS_INTERLOCK_END
+#extension GL_INTEL_fragment_shader_ordering:require
+#define v2 beginFragmentShaderOrderingINTEL()
+#define w2
 #else
-#define PLS_INTERLOCK_BEGIN
-#define PLS_INTERLOCK_END
+#define v2
+#define w2
 #endif
-
-#define PLS_BLOCK_BEGIN
-#ifdef EXPORTED_TARGET_VULKAN
-#define PLS_DECL4F(IDX, NAME)                                                   \
-    layout(set = PLS_TEXTURE_BINDINGS_SET, binding = IDX, rgba8)               \
-        uniform lowp coherent image2D NAME
-#define PLS_DECL4F_RGB10_A2(IDX, NAME)                                          \
-    layout(set = PLS_TEXTURE_BINDINGS_SET, binding = IDX, rgb10_a2)            \
-        uniform mediump coherent image2D NAME
-#define PLS_DECLUI(IDX, NAME)                                                   \
-    layout(set = PLS_TEXTURE_BINDINGS_SET, binding = IDX, r32ui)               \
-        uniform highp coherent uimage2D NAME
+#endif
+#ifdef FF
+#define J1
+#define n4(f,a) layout(input_attachment_index=f,binding=f,set=E3)uniform mediump subpassInput B7##a
+#define rd(f,a) layout(location=f)out mediump vec4 a
+#define r0(f,a) n4(f,a);rd(f,a)
+#define k1(f,a) layout(input_attachment_index=f,binding=f,set=E3)uniform highp usubpassInput B7##a;layout(location=f)out highp uvec4 a
+#define K1
+#define H0(h) subpassLoad(B7##h)
+#define d1(h) subpassLoad(B7##h).x
+#define v0(h,C) h=(C)
+#define f1(h,C) h.x=(C)
+#define r2(h) v0(h,subpassLoad(B7##h))
+#define Y1(h) f1(h,subpassLoad(B7##h).x)
+#define v2
+#define w2
+#endif
+#ifdef GF
+#define J1
+#define r0(f,a) layout(location=f)out mediump vec4 a
+#define k1(f,a) layout(location=f)out highp uvec4 a
+#define K1
+#define H0(h) vec4(0)
+#define d1(h) 0u
+#define v0(h,C) h=(C)
+#define f1(h,C) h.x=(C)
+#define r2(h) h=vec4(0)
+#define Y1(h) h.x=0u
+#define v2
+#define w2
+#endif
+#ifndef n4
+#define n4 r0
+#endif
+#ifdef VB
+#define gl_VertexID gl_VertexIndex
+#endif
+#ifdef GE
+#ifdef VB
+#define R8 gl_InstanceIndex
 #else
-#define PLS_DECL4F(IDX, NAME)                                                   \
-    layout(binding = IDX, rgba8) uniform lowp coherent image2D NAME
-#define PLS_DECL4F_RGB10_A2(IDX, NAME)                                          \
-    layout(binding = IDX, rgb10_a2) uniform mediump coherent image2D NAME
-#define PLS_DECLUI(IDX, NAME)                                                   \
-    layout(binding = IDX, r32ui) uniform highp coherent uimage2D NAME
-#endif
-#define PLS_BLOCK_END
-
-#define PLS_LOAD4F(PLANE)  imageLoad(PLANE, _plsCoord)
-#define PLS_LOADUI(PLANE)  imageLoad(PLANE, _plsCoord).x
-#define PLS_STORE4F(PLANE, VALUE)  imageStore(PLANE, _plsCoord, VALUE)
-#define PLS_STOREUI(PLANE, VALUE)  imageStore(PLANE, _plsCoord, uvec4(VALUE))
-
-#define PLS_PRESERVE_4F(PLANE)
-#define PLS_PRESERVE_UI(PLANE)
-
-#ifndef EXPORTED_USING_PLS_STORAGE_TEXTURES
-#define EXPORTED_USING_PLS_STORAGE_TEXTURES
-#endif
-
-#endif // PLS_IMPL_STORAGE_TEXTURE
-
-#ifdef EXPORTED_PLS_IMPL_SUBPASS_LOAD
-
-#define PLS_BLOCK_BEGIN
-#define PLS_DECL4F_READONLY(IDX, NAME)                                          \
-    layout(input_attachment_index = IDX,                                       \
-           binding = IDX,                                                      \
-           set = PLS_TEXTURE_BINDINGS_SET)                                     \
-        uniform lowp subpassInput _in_##NAME;
-#define PLS_DECL4F(IDX, NAME)                                                   \
-    PLS_DECL4F_READONLY(IDX, NAME);                                            \
-    layout(location = IDX) out lowp vec4 NAME
-#define PLS_DECLUI(IDX, NAME)                                                   \
-    layout(input_attachment_index = IDX,                                       \
-           binding = IDX,                                                      \
-           set = PLS_TEXTURE_BINDINGS_SET)                                     \
-        uniform highp usubpassInput _in_##NAME;                                \
-    layout(location = IDX) out highp uvec4 NAME
-#define PLS_BLOCK_END
-
-#define PLS_LOAD4F(PLANE)  subpassLoad(_in_##PLANE)
-#define PLS_LOADUI(PLANE)  subpassLoad(_in_##PLANE).x
-#define PLS_STORE4F(PLANE, VALUE)  PLANE = (VALUE)
-#define PLS_STOREUI(PLANE, VALUE)  PLANE.x = (VALUE)
-
-#define PLS_PRESERVE_4F(PLANE)  PLS_STORE4F(PLANE, subpassLoad(_in_##PLANE))
-#define PLS_PRESERVE_UI(PLANE)  PLS_STOREUI(PLANE, subpassLoad(_in_##PLANE).x)
-
-#define PLS_INTERLOCK_BEGIN
-#define PLS_INTERLOCK_END
-
-#endif
-
-#ifdef EXPORTED_PLS_IMPL_NONE
-
-#define PLS_BLOCK_BEGIN
-#define PLS_DECL4F(IDX, NAME)  layout(location = IDX) out lowp vec4 NAME
-#define PLS_DECLUI(IDX, NAME)  layout(location = IDX) out highp uvec4 NAME
-#define PLS_BLOCK_END
-
-#define PLS_LOAD4F(PLANE)  vec4(0)
-#define PLS_LOADUI(PLANE)  0u
-#define PLS_STORE4F(PLANE, VALUE)  PLANE = (VALUE)
-#define PLS_STOREUI(PLANE, VALUE)  PLANE.x = (VALUE)
-
-#define PLS_PRESERVE_4F(PLANE)  PLANE = vec4(0)
-#define PLS_PRESERVE_UI(PLANE)  PLANE.x = 0u
-
-#define PLS_INTERLOCK_BEGIN
-#define PLS_INTERLOCK_END
-
-#endif
-
-#ifndef PLS_DECL4F_READONLY
-#define PLS_DECL4F_READONLY  PLS_DECL4F
-#endif
-
-#ifdef EXPORTED_TARGET_VULKAN
-#define gl_VertexID  gl_VertexIndex
-#endif
-
-// clang-format off
-#ifdef EXPORTED_ENABLE_INSTANCE_INDEX
-#ifdef EXPORTED_TARGET_VULKAN
-#define INSTANCE_INDEX  gl_InstanceIndex
+#ifdef RD
+uniform highp int RD;
+#define R8 (gl_InstanceID+RD)
 #else
-#ifdef EXPORTED_BASE_INSTANCE_UNIFORM_NAME
-       // gl_BaseInstance isn't supported on this platform. The rendering
-       // backend will set this uniform for us instead.
-       uniform highp int EXPORTED_BASE_INSTANCE_UNIFORM_NAME;
-#define INSTANCE_INDEX  (gl_InstanceID + EXPORTED_BASE_INSTANCE_UNIFORM_NAME)
-#else
-#define INSTANCE_INDEX  (gl_InstanceID + gl_BaseInstance)
+#define R8 (gl_InstanceID+gl_BaseInstance)
 #endif
 #endif
 #else
-#define INSTANCE_INDEX  0
+#define R8 0
 #endif
-// clang-format on
-
-#define VERTEX_CONTEXT_DECL
-#define VERTEX_CONTEXT_UNPACK
-
-#define CLIP_CONTEXT_FORWARD
-#define CLIP_CONTEXT_UNPACK
-
-#define VERTEX_MAIN(NAME, Attrs, attrs, _vertexID, _instanceID)                 \
-    void main()                                                                \
-    {                                                                          \
-        int _vertexID = gl_VertexID;                                           \
-        int _instanceID = INSTANCE_INDEX;
-
-#define IMAGE_RECT_VERTEX_MAIN  VERTEX_MAIN
-
-// clang-format off
-#define IMAGE_MESH_VERTEX_MAIN(NAME, PositionAttr, position, UVAttr, uv, _vertexID)  \
-    VERTEX_MAIN(NAME, PositionAttr, position, _vertexID, _instanceID)
-// clang-format on
-
-#define VARYING_INIT(NAME, TYPE)
-#define VARYING_PACK(NAME)
-#define VARYING_UNPACK(NAME, TYPE)
-
-#define EMIT_VERTEX(_pos)                                                       \
-    gl_Position = _pos;                                                        \
-    }
-
-#define FRAG_DATA_MAIN(DATA_TYPE, NAME)                                         \
-    layout(location = 0) out DATA_TYPE _fd;                                    \
-    void main()
-
-#define FRAG_DATA_MAIN_WITH_CLOCKWISE  FRAG_DATA_MAIN
-
-#define _clockwise  gl_FrontFacing
-
-#define EMIT_FRAG_DATA(VALUE)  _fd = VALUE
-
-#define _fragCoord  gl_FragCoord.xy
-
-#define FRAGMENT_CONTEXT_DECL
-#define FRAGMENT_CONTEXT_UNPACK
-
-#ifdef EXPORTED_USING_PLS_STORAGE_TEXTURES
-
-#ifdef EXPORTED_TARGET_VULKAN
-#define PLS_DECLUI_UAV(IDX, NAME)                                               \
-    layout(set = PLS_TEXTURE_BINDINGS_SET, binding = IDX, r32ui)               \
-        uniform highp coherent uimage2D NAME
-#define PLS_DECL4F_RGB10_A2_UAV(IDX, NAME)                                      \
-    layout(set = PLS_TEXTURE_BINDINGS_SET, binding = IDX, rgb10_a2)            \
-        uniform mediump coherent image2D NAME
+#define i6
+#define v3
+#define a7
+#define w5
+#define C1(a,a0,G,v,T) void main(){int v=gl_VertexID;int T=R8;
+#define S7 C1
+#define E6(a,h3,i3,w3,x3,v) C1(a,h3,i3,v,T)
+#define Y(a,W)
+#define k0(a)
+#define B(a,W)
+#define D1(L0) gl_Position=L0;}
+#define Y2(Q1,a) layout(location=0)out Q1 xg;void main()
+#define q6 Y2
+#define r6 gl_FrontFacing
+#define G2(C) xg=C
+#define S gl_FragCoord.xy
+#define G6
+#define S2
+#if defined(QD)||defined(PD)
+#define sd(C7,h,C) if(!(C7)){v0(h,C);}
+#define td(C7,h,C) if(!(C7)){f1(h,C);}
 #else
-#define PLS_DECLUI_UAV(IDX, NAME)                                               \
-    layout(binding = IDX, r32ui) uniform highp coherent uimage2D NAME
-#define PLS_DECL4F_RGB10_A2_UAV(IDX, NAME)                                      \
-    layout(binding = IDX, rgb10_a2) uniform mediump coherent image2D NAME;
+#define sd(C7,h,C) v0(h,C);
+#define td(C7,h,C) f1(h,C);
 #endif
-#define PLS_LOADUI_UAV(PLANE)  imageLoad(PLANE, _plsCoord).x
-#define PLS_STOREUI_UAV(PLANE, VALUE)  imageStore(PLANE, _plsCoord, uvec4(VALUE))
-#define PLS_LOAD4F_UAV(PLANE)  imageLoad(PLANE, _plsCoord)
-#define PLS_STORE4F_UAV(PLANE, VALUE)  imageStore(PLANE, _plsCoord, VALUE)
-#define PLS_ATOMIC_MAX(PLANE, X)  imageAtomicMax(PLANE, _plsCoord, X)
-#define PLS_ATOMIC_ADD(PLANE, X)  imageAtomicAdd(PLANE, _plsCoord, X)
-
-#define PLS_CONTEXT_DECL  , int2 _plsCoord
-#define PLS_CONTEXT_UNPACK  , _plsCoord
-
-#define PLS_MAIN(NAME)                                                          \
-    void main()                                                                \
-    {                                                                          \
-        int2 _plsCoord = ivec2(floor(_fragCoord));
-
-#define EMIT_PLS  }
-
-// Storage textures are expensive to update. It's faster to conditionally update
-// them when possible.
-#define PLS_STORE4F_OPTIONAL_IF(CONDITION, PLANE, VALUE)                        \
-    if (!(CONDITION))                                                          \
-    {                                                                          \
-        PLS_STORE4F(PLANE, VALUE);                                             \
-    }
-#define PLS_STOREUI_OPTIONAL_IF(CONDITION, PLANE, VALUE)                        \
-    if (!(CONDITION))                                                          \
-    {                                                                          \
-        PLS_STOREUI(PLANE, VALUE);                                             \
-    }
-
-#else // !USING_PLS_STORAGE_TEXTURES
-
-#define PLS_CONTEXT_DECL
-#define PLS_CONTEXT_UNPACK
-
-#define PLS_MAIN(NAME)  void main()
-#define EMIT_PLS
-
-// Cheap forms of PLS do better to update unconditionally, even if it might be a
-// no-op. (Especially since we otherwise would have had to preserve anyway.)
-#define PLS_STORE4F_OPTIONAL_IF(CONDITION, PLANE, VALUE)                        \
-    PLS_STORE4F(PLANE, VALUE);
-#define PLS_STOREUI_OPTIONAL_IF(CONDITION, PLANE, VALUE)                        \
-    PLS_STOREUI(PLANE, VALUE);
-
-#endif // !USING_PLS_STORAGE_TEXTURES
-
-#define PLS_MAIN_WITH_IMAGE_UNIFORMS(NAME)  PLS_MAIN(NAME)
-
-#ifndef PLS_FRAG_COLOR_MAIN
-#define PLS_FRAG_COLOR_MAIN(NAME)                                               \
-    layout(location = 0) out half4 _fragColor;                                 \
-    PLS_MAIN(NAME)
+#define O5(a) m1(a)
+#ifndef o2
+#define o2(a) layout(location=0)out i l1;m1(a)
 #endif
-
-#ifndef PLS_FRAG_COLOR_MAIN_WITH_IMAGE_UNIFORMS
-#define PLS_FRAG_COLOR_MAIN_WITH_IMAGE_UNIFORMS(NAME)                           \
-    layout(location = 0) out half4 _fragColor;                                 \
-    PLS_MAIN(NAME)
+#ifndef r4
+#define r4(a) layout(location=0)out i l1;m1(a)
 #endif
-
-#define EMIT_PLS_AND_FRAG_COLOR  EMIT_PLS
-
-#if defined(EXPORTED_TARGET_VULKAN) && !defined(EXPORTED_INPUT_ATTACHMENT_NONE)
-#define DST_COLOR_TEXTURE(NAME)                                                 \
-    layout(input_attachment_index = 0,                                         \
-           binding = COLOR_PLANE_IDX,                                          \
-           set = PLS_TEXTURE_BINDINGS_SET) uniform lowp subpassInputMS NAME
-#define DST_COLOR_FETCH(NAME)                                                   \
-    dst_color_fetch(mat4(subpassLoad(NAME, 0),                                 \
-                         subpassLoad(NAME, 1),                                 \
-                         subpassLoad(NAME, 2),                                 \
-                         subpassLoad(NAME, 3)),                                \
-                    gl_SampleMaskIn[0])
+#define l3 U1
+#if defined(VB)&&!defined(FE)
+#define g7(a) layout(input_attachment_index=0,binding=Q2,set=E3)uniform mediump subpassInputMS a
+#define S8(a) oc(mat4(subpassLoad(a,0),subpassLoad(a,1),subpassLoad(a,2),subpassLoad(a,3)),gl_SampleMaskIn[0])
 #else
-#define DST_COLOR_TEXTURE(NAME)                                                 \
-    TEXTURE_RGBA8(PER_FLUSH_BINDINGS_SET, DST_COLOR_TEXTURE_IDX, NAME)
-#define DST_COLOR_FETCH(NAME)  texelFetch(NAME, ivec2(floor(_fragCoord.xy)), 0)
+#define g7(a) X2(a3,yf,a)
+#define S8(a) texelFetch(a,ivec2(floor(S.xy)),0)
 #endif
-
-#define MUL(A, B)  ((A) * (B))
-
-precision highp float;
-precision highp int;
-
-#if EXPORTED_GLSL_VERSION < 310
-// Polyfill ES 3.1+ methods.
-INLINE half4 polyfill_unpackUnorm4x8(uint u)
-{
-    uint4 vals = uint4(u & 0xffu, (u >> 8) & 0xffu, (u >> 16) & 0xffu, u >> 24);
-    return float4(vals) * (1. / 255.);
-}
-// Use #define for unpackUnorm4x8 because some drivers (e.g., Adreno 308)
-// incorrectly declare this builtin on ES 3.0, leading to compiler errors if we
-// just declare it as a normal function.
-#define unpackUnorm4x8  polyfill_unpackUnorm4x8
+#define Z0(A,F) ((A)*(F))
+precision highp float;precision highp int;
+#if EC<310
+e i yg(uint u){Q R1=Q(u&0xffu,(u>>8)&0xffu,(u>>16)&0xffu,u>>24);return g(R1)*(1./255.);}
+#define unpackUnorm4x8 yg
 #endif
 )===";
 } // namespace glsl

@@ -1,120 +1,125 @@
-{
-  "description": "Known-good Radbot Rive Win64 static library set for the hug layout fix.",
-  "libraries": [
-    {
-      "name": "luau_vm.lib",
-      "size": 1868912,
-      "sha256": "234C5E7452C3D1F9C0C7FCDAEF3BDC89CAF00B55B76FA59BE906D3575F34CD22"
-    },
-    {
-      "name": "luau_vm_d.lib",
-      "size": 2389576,
-      "sha256": "7165BB32AEEEFEC49FD99AC1A906705289FEBD6F1C8402696230143CB733BC6E"
-    },
-    {
-      "name": "rive.lib",
-      "size": 85152464,
-      "sha256": "8952F36E0F7C38AF1F4CB9F8C409316D9FE8DB60BFA35119EE1D4FF674744D7D"
-    },
-    {
-      "name": "rive_d.lib",
-      "size": 68451374,
-      "sha256": "1F91129F3A8556CE5331BB8419F2142BD338E1C513F6B475E8F141FA3B4CEC5F"
-    },
-    {
-      "name": "rive_decoders.lib",
-      "size": 157424,
-      "sha256": "563C689FF4850CA6D73A48F8998BEB573FAF316CA5FB5F89A4F714FBB6C776DA"
-    },
-    {
-      "name": "rive_decoders_d.lib",
-      "size": 349606,
-      "sha256": "860FA91AD0BDF42F34E5FD20DE9567A0A9050CACA17E475271B5FDBEE6A3CA08"
-    },
-    {
-      "name": "rive_harfbuzz.lib",
-      "size": 25339192,
-      "sha256": "E9550931984FDBBAFF69E98BEF4897244059F0BD030A759D27A128BD2B7B6A05"
-    },
-    {
-      "name": "rive_harfbuzz_d.lib",
-      "size": 83409200,
-      "sha256": "96F21219D1DBF4F6387BEAAAE05FC12F5626B386F96821FACB2790A36537B62A"
-    },
-    {
-      "name": "rive_libjpeg.lib",
-      "size": 1864792,
-      "sha256": "9DC347356F9F3D786F936DEA263B304B65F021A455346CD9EF13E3FA5C6C7835"
-    },
-    {
-      "name": "rive_libjpeg_d.lib",
-      "size": 1741128,
-      "sha256": "3395DBB5D339C6A1A1110AAA54826C410C2B090FB659DD8BA37583D8CA5434BE"
-    },
-    {
-      "name": "rive_libpng.lib",
-      "size": 1333388,
-      "sha256": "7802B76BFC75418660EC4417966F350B0DA87343C94C87A7624D25E9FE3A9B9F"
-    },
-    {
-      "name": "rive_libpng_d.lib",
-      "size": 1256910,
-      "sha256": "CED04D215EBF0156D7CC632D884D45E46ECEEC34C3BDEA62D2528E971072C6BB"
-    },
-    {
-      "name": "rive_libwebp.lib",
-      "size": 2872454,
-      "sha256": "2315D2042054FFA6A2D0F52A1389399E98BB7BCBD3D64CAD78C511D318F53418"
-    },
-    {
-      "name": "rive_libwebp_d.lib",
-      "size": 3052992,
-      "sha256": "C9B54D16CAECC14003193DAD971ED96D9165D27BA4FAC0B5D13C161267BDB21B"
-    },
-    {
-      "name": "rive_miniaudio.lib",
-      "size": 3200792,
-      "sha256": "554AB32979F6635932656783DD81DD2849C4074CAF72DBA68002C85C88030AA8"
-    },
-    {
-      "name": "rive_pls_renderer.lib",
-      "size": 8089356,
-      "sha256": "068569A2E338B2CF1D45C5B6099DD4389A00D5EA2AA04B500E5D36E83287ED2B"
-    },
-    {
-      "name": "rive_pls_renderer_d.lib",
-      "size": 8341012,
-      "sha256": "0BEC0B9232BCF5FB8FD0BFB5BC5AC58FE5ADC2CD211682823A6AA52E3105AC08"
-    },
-    {
-      "name": "rive_sheenbidi.lib",
-      "size": 182660,
-      "sha256": "0F940E92604CDA98B6DF4534DE3756B906751A81306E52F677DEA5857BB05275"
-    },
-    {
-      "name": "rive_sheenbidi_d.lib",
-      "size": 366232,
-      "sha256": "41A99ACFFBE0A8856FA1ECCE27950B65D2E0F976DB131A1C864AA44A7D78BE05"
-    },
-    {
-      "name": "rive_yoga.lib",
-      "size": 1079182,
-      "sha256": "55AC2433785EEA43BE9EE5BFDA1204786D4F0D2BAF0FF532A5BD1C65283B79A4"
-    },
-    {
-      "name": "rive_yoga_d.lib",
-      "size": 1934420,
-      "sha256": "C397C44882843D3EDE2BE7566CE5F907FA05EDEDD2387DCDF97B93094E79E81F"
-    },
-    {
-      "name": "rive_zlib.lib",
-      "size": 418032,
-      "sha256": "4CE2EBD5CD4C2C308E8524866500F31A4A41F3FD49D2C507762DEE2A14B42FE9"
-    },
-    {
-      "name": "rive_zlib_d.lib",
-      "size": 405870,
-      "sha256": "4D199B860A4EE4D471D3E2F3E0B6DCFC98902A2F1454DF9BEEFA2B699B2E9A1C"
-    }
-  ]
+﻿{
+    "description":  "Radbot Rive Win64 static library fingerprint generated from Plugins/Rive/submodules/rive-runtime. Libraries are intentionally not committed; run BuildRadbotRive.ps1 -BootstrapWin64 to recreate them.",
+    "libraries":  [
+                      {
+                          "name":  "luau_vm.lib",
+                          "size":  2140024,
+                          "sha256":  "E127DDA039C662B1549BD8F1DA017DD150461EDED7D0799A59F33581A8FE7A45"
+                      },
+                      {
+                          "name":  "luau_vm_d.lib",
+                          "size":  2723442,
+                          "sha256":  "63A34BC31E8D17CE3B4FBBC0A0519956F19DE5053128CFA70BED64F172A955DE"
+                      },
+                      {
+                          "name":  "rive.lib",
+                          "size":  92566160,
+                          "sha256":  "7FCBC8633FF30D12E1C40197761083AE604D2D72F50E8BFD3992BB4BC7C7A4C2"
+                      },
+                      {
+                          "name":  "rive_d.lib",
+                          "size":  187134210,
+                          "sha256":  "5091A6DB5FD335A5ABC64A5C3E9B603F09C459AB4EF0FE6579DB63D0A88EC4EE"
+                      },
+                      {
+                          "name":  "rive_decoders.lib",
+                          "size":  289806,
+                          "sha256":  "45BD4C25747C46A651044CD889E299F015AA03490F6D87FBB6F01731C3983E9A"
+                      },
+                      {
+                          "name":  "rive_decoders_d.lib",
+                          "size":  573412,
+                          "sha256":  "647BA552362503DFC59FF734B7CC32132518321C6BFCBE0D8B66E0E2999F1264"
+                      },
+                      {
+                          "name":  "rive_harfbuzz.lib",
+                          "size":  25277476,
+                          "sha256":  "CCCDF9DECC73CAB0C7D66AC0C66693AF253256C79DB69D05094FF087DF7304B7"
+                      },
+                      {
+                          "name":  "rive_harfbuzz_d.lib",
+                          "size":  40503076,
+                          "sha256":  "DA72FB39F69B9B078187E91A75A45FE5C7AA7AAC62D4D3A8F28AA3F89FAB0447"
+                      },
+                      {
+                          "name":  "rive_libjpeg.lib",
+                          "size":  1857732,
+                          "sha256":  "A754C2D434DD6647BFEC7BE7416502CEE3CB8E88BC20CCF0FA5BD7826818C813"
+                      },
+                      {
+                          "name":  "rive_libjpeg_d.lib",
+                          "size":  1856460,
+                          "sha256":  "250A3DB594935B0BFDEDB3ED01272C767AAF90910A9C5025A1A2C8DC880660E9"
+                      },
+                      {
+                          "name":  "rive_libpng.lib",
+                          "size":  1330908,
+                          "sha256":  "0DE7F562CBC840B9C212BC4B6C90A45B2BEC441D070BCC461C3E18420BE242CB"
+                      },
+                      {
+                          "name":  "rive_libpng_d.lib",
+                          "size":  1330392,
+                          "sha256":  "69AE80B49E190CF6F8A8B47E0EBB6D3A23C33904179AFA1F412FB9C231D99BF4"
+                      },
+                      {
+                          "name":  "rive_libwebp.lib",
+                          "size":  2860962,
+                          "sha256":  "F55812025C2782434800BF5657C391656DA468468783417D830E764B62F0EFA9"
+                      },
+                      {
+                          "name":  "rive_libwebp_d.lib",
+                          "size":  3197156,
+                          "sha256":  "6DEE2FAE791916D07D72885C5B07324D83F8C2586F295EEB484E3623EFD637A0"
+                      },
+                      {
+                          "name":  "rive_miniaudio.lib",
+                          "size":  3200700,
+                          "sha256":  "81F33A9C25DADD2881DD3FBB2F2905ED4D314D6C31C93FACDF558BA385453B83"
+                      },
+                      {
+                          "name":  "rive_miniaudio_d.lib",
+                          "size":  2923218,
+                          "sha256":  "CDA7CE2B7500BFD25D7343B832D5E7B2C74EE130FD473DFE2C6AE3198352F8C2"
+                      },
+                      {
+                          "name":  "rive_pls_renderer.lib",
+                          "size":  12380586,
+                          "sha256":  "4E7CFFB209B2B84BBD8502A02A9A8C7EAB4801E9FF9C5AF68968E4510DC795AA"
+                      },
+                      {
+                          "name":  "rive_pls_renderer_d.lib",
+                          "size":  25078182,
+                          "sha256":  "6C1501D602E11F665FFD21ABCC9637CC39EAAEFFAECBA22A1E40CD3051DF00DF"
+                      },
+                      {
+                          "name":  "rive_sheenbidi.lib",
+                          "size":  181588,
+                          "sha256":  "F32E9D7B32B5B079390EF2FB17DEC81D9036742BB3A2103AFDD672E24B3DD10A"
+                      },
+                      {
+                          "name":  "rive_sheenbidi_d.lib",
+                          "size":  374950,
+                          "sha256":  "4D659D7EE9F374677E5C7F8F8B674FDA30D7D36899C7A783C4F16487E9814928"
+                      },
+                      {
+                          "name":  "rive_yoga.lib",
+                          "size":  1076490,
+                          "sha256":  "A404C1D68D8B6DC25CB1FCC3F0A3266A126D32D32E66F59A71BB7FEBAB59D2AF"
+                      },
+                      {
+                          "name":  "rive_yoga_d.lib",
+                          "size":  1992226,
+                          "sha256":  "D4998F54A70CEB169B6045D4EFEA37FF05BC6C324DC31860114EEBB41ED938A1"
+                      },
+                      {
+                          "name":  "rive_zlib.lib",
+                          "size":  416344,
+                          "sha256":  "8D70089D3189030BD176385DAB1331E57CE13075C34FFC95FE2B7ECC4D43E76E"
+                      },
+                      {
+                          "name":  "rive_zlib_d.lib",
+                          "size":  415934,
+                          "sha256":  "C64F5B8B361B5E517C5084706294F79647FE0C27CEBB1569A193AFE5AEED59AE"
+                      }
+                  ]
 }

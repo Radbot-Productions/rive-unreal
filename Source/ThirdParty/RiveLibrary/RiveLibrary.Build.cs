@@ -184,6 +184,10 @@ public class RiveLibrary : ModuleRules
 
         PublicDefinitions.Add("WITH_RIVE=1");
         PublicDefinitions.Add("WITH_RIVE_AUDIO=1");
+        PublicDefinitions.Add("WITH_RIVE_TEXT=1");
+        PublicDefinitions.Add("WITH_RIVE_LAYOUT=1");
+        PublicDefinitions.Add("WITH_RIVE_SCRIPTING=1");
+        PublicDefinitions.Add("RIVE_DECODERS=1");
         PublicDefinitions.Add("EXTERNAL_RIVE_AUDIO_ENGINE=1");
 
         // If we are linking against GMs, define WITH_RIVE_TOOLS

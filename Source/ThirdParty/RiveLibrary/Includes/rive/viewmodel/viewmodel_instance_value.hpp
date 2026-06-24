@@ -42,6 +42,7 @@ private:
     ValueFlags m_changeFlags;
     std::vector<ViewModelInstanceValueDelegate*> m_delegates;
     std::vector<ViewModelInstanceValueDelegate*> m_delegatesCopy;
+    void registerSymbol();
 
 public:
     void addDelegate(ViewModelInstanceValueDelegate* delegate);
@@ -63,6 +64,9 @@ public:
     void viewModelProperty(ViewModelProperty* value);
     ViewModelProperty* viewModelProperty();
     void viewModelInstance(ViewModelInstance* value);
+#ifdef WITH_RIVE_TOOLS
+    ViewModelInstance* viewModelInstance() const { return m_viewModelInstance; }
+#endif
     void addDependent(ViewModelValueDependent* value);
     void removeDependent(ViewModelValueDependent* value);
     virtual void setRoot(rcp<ViewModelInstance> value);

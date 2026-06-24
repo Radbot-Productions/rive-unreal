@@ -5,945 +5,394 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char atomic_draw[] = R"===(/*
- * Copyright 2023 Rive
- */
-
-#ifdef EXPORTED_DRAW_PATH
-#ifdef EXPORTED_VERTEX
-ATTR_BLOCK_BEGIN(Attrs)
-ATTR(0,
-     float4,
-     EXPORTED_a_patchVertexData); // [localVertexID, outset, fillCoverage, vertexType]
-ATTR(1, float4, EXPORTED_a_mirroredVertexData);
-ATTR_BLOCK_END
+const char atomic_draw[] = R"===(#ifdef BD
+#ifdef CB
+A1(a0)p0(0,g,SB);p0(1,g,TB);B1
 #endif
-
-VARYING_BLOCK_BEGIN
-#ifdef EXPORTED_ENABLE_FEATHER
-NO_PERSPECTIVE VARYING(0, float4, v_coverages);
+h2
+#ifdef HB
+J0 c0(0,g,I);
 #else
-NO_PERSPECTIVE VARYING(0, half2, v_coverages);
+J0 c0(0,D,I);
 #endif
-FLAT VARYING(1, ushort, v_pathID);
-VARYING_BLOCK_END
-
-#ifdef EXPORTED_VERTEX
-VERTEX_MAIN(EXPORTED_drawVertexMain, Attrs, attrs, _vertexID, _instanceID)
-{
-    ATTR_UNPACK(_vertexID, attrs, EXPORTED_a_patchVertexData, float4);
-    ATTR_UNPACK(_vertexID, attrs, EXPORTED_a_mirroredVertexData, float4);
-
-#ifdef EXPORTED_ENABLE_FEATHER
-    VARYING_INIT(v_coverages, float4);
+R4 c0(1,X,z0);a2
+#ifdef CB
+C1(YB,a0,G,v,T){q0(v,G,SB,g);q0(v,G,TB,g);
+#ifdef HB
+Y(I,g);
 #else
-    VARYING_INIT(v_coverages, half2);
+Y(I,D);
 #endif
-    VARYING_INIT(v_pathID, ushort);
-
-    float4 pos;
-    uint pathID;
-    float2 vertexPosition;
-    float4 coverages;
-    if (unpack_tessellated_path_vertex(EXPORTED_a_patchVertexData,
-                                       EXPORTED_a_mirroredVertexData,
-                                       _instanceID,
-                                       pathID,
-                                       vertexPosition,
-                                       coverages VERTEX_CONTEXT_UNPACK))
-    {
-#ifdef EXPORTED_ENABLE_FEATHER
-        v_coverages = coverages;
+Y(z0,X);g N;uint l0;c i0;g J;if(p9(SB,TB,T,l0,i0,J v3)){
+#ifdef HB
+I=J;
 #else
-        v_coverages.xy = cast_float2_to_half2(coverages.xy);
+I.xy=R7(J.xy);
 #endif
-        v_pathID = cast_uint_to_ushort(pathID);
-        pos = RENDER_TARGET_COORD_TO_CLIP_COORD(vertexPosition);
-    }
-    else
-    {
-        pos = float4(uniforms.vertexDiscardValue,
-                     uniforms.vertexDiscardValue,
-                     uniforms.vertexDiscardValue,
-                     uniforms.vertexDiscardValue);
-    }
-
-    VARYING_PACK(v_coverages);
-    VARYING_PACK(v_pathID);
-    EMIT_VERTEX(pos);
-}
-#endif // VERTEX
-#endif // DRAW_PATH
-
-#if defined(EXPORTED_DRAW_INTERIOR_TRIANGLES) || defined(EXPORTED_ATLAS_BLIT)
-#ifdef EXPORTED_VERTEX
-ATTR_BLOCK_BEGIN(Attrs)
-ATTR(0, packed_float3, EXPORTED_a_triangleVertex);
-ATTR_BLOCK_END
+z0=i2(l0);N=K3(i0);}else{N=g(k.P2,k.P2,k.P2,k.P2);}k0(I);k0(z0);D1(N);}
 #endif
-
-VARYING_BLOCK_BEGIN
-#ifdef EXPORTED_ATLAS_BLIT
-NO_PERSPECTIVE VARYING(0, float2, v_atlasCoord);
+#endif
+#if defined(DB)||defined(EB)
+#ifdef CB
+A1(a0)p0(0,L3,KB);B1
+#endif
+h2
+#ifdef EB
+J0 c0(0,c,C2);
 #else
-EXPORTED_OPTIONALLY_FLAT VARYING(0, half, v_windingWeight);
+OB c0(0,d,j1);
 #endif
-FLAT VARYING(1, ushort, v_pathID);
-VARYING_BLOCK_END
-
-#ifdef EXPORTED_VERTEX
-VERTEX_MAIN(EXPORTED_drawVertexMain, Attrs, attrs, _vertexID, _instanceID)
-{
-    ATTR_UNPACK(_vertexID, attrs, EXPORTED_a_triangleVertex, float3);
-
-#ifdef EXPORTED_ATLAS_BLIT
-    VARYING_INIT(v_atlasCoord, float2);
+R4 c0(1,X,z0);a2
+#ifdef CB
+C1(YB,a0,G,v,T){q0(v,G,KB,V);
+#ifdef EB
+Y(C2,c);
 #else
-    VARYING_INIT(v_windingWeight, half);
+Y(j1,d);
 #endif
-    VARYING_INIT(v_pathID, ushort);
-
-    uint pathID;
-    float2 vertexPosition;
-#ifdef EXPORTED_ATLAS_BLIT
-    vertexPosition =
-        unpack_atlas_coverage_vertex(EXPORTED_a_triangleVertex,
-                                     pathID,
-                                     v_atlasCoord VERTEX_CONTEXT_UNPACK);
+Y(z0,X);uint l0;c i0;
+#ifdef EB
+i0=sb(KB,l0,C2 v3);
 #else
-    vertexPosition =
-        unpack_interior_triangle_vertex(EXPORTED_a_triangleVertex,
-                                        pathID,
-                                        v_windingWeight VERTEX_CONTEXT_UNPACK);
+i0=tb(KB,l0,j1 v3);
 #endif
-    v_pathID = cast_uint_to_ushort(pathID);
-    float4 pos = RENDER_TARGET_COORD_TO_CLIP_COORD(vertexPosition);
-
-#ifdef EXPORTED_ATLAS_BLIT
-    VARYING_PACK(v_atlasCoord);
+z0=i2(l0);g N=K3(i0);
+#ifdef EB
+k0(C2);
 #else
-    VARYING_PACK(v_windingWeight);
+k0(j1);
 #endif
-    VARYING_PACK(v_pathID);
-    EMIT_VERTEX(pos);
-}
-#endif // @VERTEX
-#endif // @DRAW_INTERIOR_TRIANGLES || @ATLAS_BLIT
-
-#ifdef EXPORTED_DRAW_IMAGE_RECT
-#ifdef EXPORTED_VERTEX
-ATTR_BLOCK_BEGIN(Attrs)
-ATTR(0, float4, EXPORTED_a_imageRectVertex);
-ATTR_BLOCK_END
+k0(z0);D1(N);}
 #endif
-
-VARYING_BLOCK_BEGIN
-NO_PERSPECTIVE VARYING(0, float2, v_texCoord);
-NO_PERSPECTIVE VARYING(1, half, v_edgeCoverage);
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-NO_PERSPECTIVE VARYING(2, float4, v_clipRect);
 #endif
-VARYING_BLOCK_END
-
-#ifdef EXPORTED_VERTEX
-IMAGE_RECT_VERTEX_MAIN(EXPORTED_drawVertexMain, Attrs, attrs, _vertexID, _instanceID)
-{
-    ATTR_UNPACK(_vertexID, attrs, EXPORTED_a_imageRectVertex, float4);
-
-    VARYING_INIT(v_texCoord, float2);
-    VARYING_INIT(v_edgeCoverage, half);
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-    VARYING_INIT(v_clipRect, float4);
+#ifdef CD
+#ifdef CB
+A1(a0)p0(0,g,ZB);B1
 #endif
-
-    bool isOuterVertex =
-        EXPORTED_a_imageRectVertex.z == .0 || EXPORTED_a_imageRectVertex.w == .0;
-    v_edgeCoverage = isOuterVertex ? .0 : 1.;
-
-    float2 vertexPosition = EXPORTED_a_imageRectVertex.xy;
-    float2x2 M = make_float2x2(imageDrawUniforms.viewMatrix);
-    float2x2 MIT = transpose(inverse(M));
-    if (!isOuterVertex)
-    {
-        // Inset the inner vertices to the point where coverage == 1.
-        // NOTE: if width/height ever change from 1, these equations need to be
-        // updated.
-        float aaRadiusX =
-            AA_RADIUS * manhattan_width(MIT[1]) / dot(M[1], MIT[1]);
-        if (aaRadiusX >= .5)
-        {
-            vertexPosition.x = .5;
-            v_edgeCoverage *= cast_float_to_half(.5 / aaRadiusX);
-        }
-        else
-        {
-            vertexPosition.x += aaRadiusX * EXPORTED_a_imageRectVertex.z;
-        }
-        float aaRadiusY =
-            AA_RADIUS * manhattan_width(MIT[0]) / dot(M[0], MIT[0]);
-        if (aaRadiusY >= .5)
-        {
-            vertexPosition.y = .5;
-            v_edgeCoverage *= cast_float_to_half(.5 / aaRadiusY);
-        }
-        else
-        {
-            vertexPosition.y += aaRadiusY * EXPORTED_a_imageRectVertex.w;
-        }
-    }
-
-    v_texCoord = vertexPosition;
-    vertexPosition = MUL(M, vertexPosition) + imageDrawUniforms.translate;
-
-    if (isOuterVertex)
-    {
-        // Outset the outer vertices to the point where coverage == 0.
-        float2 n = MUL(MIT, EXPORTED_a_imageRectVertex.zw);
-        n *= manhattan_width(n) / dot(n, n);
-        vertexPosition += AA_RADIUS * n;
-    }
-
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-    if (EXPORTED_ENABLE_CLIP_RECT)
-    {
-        v_clipRect = find_clip_rect_coverage_distances(
-            make_float2x2(imageDrawUniforms.clipRectInverseMatrix),
-            imageDrawUniforms.clipRectInverseTranslate,
-            vertexPosition);
-    }
+h2 J0 c0(0,c,U0);J0 c0(1,d,S4);
+#ifdef AB
+J0 c0(2,g,N0);
 #endif
-
-    float4 pos = RENDER_TARGET_COORD_TO_CLIP_COORD(vertexPosition);
-
-    VARYING_PACK(v_texCoord);
-    VARYING_PACK(v_edgeCoverage);
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-    VARYING_PACK(v_clipRect);
+a2
+#ifdef CB
+S7(YB,a0,G,v,T){q0(v,G,ZB,g);Y(U0,c);Y(S4,d);
+#ifdef AB
+Y(N0,g);
 #endif
-    EMIT_VERTEX(pos);
-}
-#endif // VERTEX
-
-#elif defined(EXPORTED_DRAW_IMAGE_MESH)
-#ifdef EXPORTED_VERTEX
-ATTR_BLOCK_BEGIN(PositionAttr)
-ATTR(0, float2, EXPORTED_a_position);
-ATTR_BLOCK_END
-
-ATTR_BLOCK_BEGIN(UVAttr)
-ATTR(1, float2, EXPORTED_a_texCoord);
-ATTR_BLOCK_END
+bool q9=ZB.z==.0||ZB.w==.0;S4=q9?.0:1.;c i0=ZB.xy;Z Y0=j2(A0.r9);Z D6=transpose(inverse(Y0));if(!q9){float v9=l4*w9(D6[1])/dot(Y0[1],D6[1]);if(v9>=.5){i0.x=.5;S4*=m4(.5/v9);}else{i0.x+=v9*ZB.z;}float x9=l4*w9(D6[0])/dot(Y0[0],D6[0]);if(x9>=.5){i0.y=.5;S4*=m4(.5/x9);}else{i0.y+=x9*ZB.w;}}U0=i0;i0=Z0(Y0,i0)+A0.c2;if(q9){c M3=Z0(D6,ZB.zw);M3*=w9(M3)/dot(M3,M3);i0+=l4*M3;}
+#ifdef AB
+if(AB){N0=T7(j2(A0.k2),A0.D2,i0);}
 #endif
-
-VARYING_BLOCK_BEGIN
-NO_PERSPECTIVE VARYING(0, float2, v_texCoord);
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-NO_PERSPECTIVE VARYING(1, float4, v_clipRect);
+g N=K3(i0);k0(U0);k0(S4);
+#ifdef AB
+k0(N0);
 #endif
-VARYING_BLOCK_END
-
-#ifdef EXPORTED_VERTEX
-IMAGE_MESH_VERTEX_MAIN(EXPORTED_drawVertexMain,
-                       PositionAttr,
-                       position,
-                       UVAttr,
-                       uv,
-                       _vertexID)
-{
-    ATTR_UNPACK(_vertexID, position, EXPORTED_a_position, float2);
-    ATTR_UNPACK(_vertexID, uv, EXPORTED_a_texCoord, float2);
-
-    VARYING_INIT(v_texCoord, float2);
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-    VARYING_INIT(v_clipRect, float4);
+D1(N);}
 #endif
-
-    float2x2 M = make_float2x2(imageDrawUniforms.viewMatrix);
-    float2 vertexPosition = MUL(M, EXPORTED_a_position) + imageDrawUniforms.translate;
-    v_texCoord = EXPORTED_a_texCoord;
-
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-    if (EXPORTED_ENABLE_CLIP_RECT)
-    {
-        v_clipRect = find_clip_rect_coverage_distances(
-            make_float2x2(imageDrawUniforms.clipRectInverseMatrix),
-            imageDrawUniforms.clipRectInverseTranslate,
-            vertexPosition);
-    }
+#elif defined(LB)
+#ifdef CB
+A1(h3)p0(0,c,GC);B1 A1(w3)p0(1,c,HC);B1
 #endif
-
-    float4 pos = RENDER_TARGET_COORD_TO_CLIP_COORD(vertexPosition);
-
-    VARYING_PACK(v_texCoord);
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-    VARYING_PACK(v_clipRect);
+h2 J0 c0(0,c,U0);
+#ifdef AB
+J0 c0(1,g,N0);
 #endif
-    EMIT_VERTEX(pos);
-}
-#endif // VERTEX
-#endif // DRAW_IMAGE_MESH
-
-#ifdef EXPORTED_DRAW_RENDER_TARGET_UPDATE_BOUNDS
-#ifdef EXPORTED_VERTEX
-ATTR_BLOCK_BEGIN(Attrs)
-ATTR_BLOCK_END
-#endif // VERTEX
-
-VARYING_BLOCK_BEGIN
-VARYING_BLOCK_END
-
-#ifdef EXPORTED_VERTEX
-VERTEX_MAIN(EXPORTED_drawVertexMain, Attrs, attrs, _vertexID, _instanceID)
-{
-    int2 coord;
-    coord.x = (_vertexID & 1) == 0 ? uniforms.renderTargetUpdateBounds.x
-                                   : uniforms.renderTargetUpdateBounds.z;
-    coord.y = (_vertexID & 2) == 0 ? uniforms.renderTargetUpdateBounds.y
-                                   : uniforms.renderTargetUpdateBounds.w;
-    float4 pos = RENDER_TARGET_COORD_TO_CLIP_COORD(float2(coord));
-    EMIT_VERTEX(pos);
-}
-#endif // VERTEX
-#endif // DRAW_RENDER_TARGET_UPDATE_BOUNDS
-
-#ifdef EXPORTED_DRAW_IMAGE
-#define NEEDS_IMAGE_TEXTURE
+a2
+#ifdef CB
+E6(YB,h3,i3,w3,x3,v){q0(v,i3,GC,c);q0(v,x3,HC,c);Y(U0,c);
+#ifdef AB
+Y(N0,g);
 #endif
-
-#ifdef EXPORTED_FRAGMENT
-PLS_BLOCK_BEGIN
-// We only bind the framebuffer as PLS when there are blend modes. Otherwise, we
-// render to it as a normal color attachment.
-#ifndef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-#ifdef EXPORTED_COLOR_PLANE_IDX_OVERRIDE
-// D3D11 doesn't let us bind the framebuffer UAV to slot 0 when there is a
-// color output.
-#define LOCAL_COLOR_PLANE_IDX  EXPORTED_COLOR_PLANE_IDX_OVERRIDE
+Z Y0=j2(A0.r9);c i0=Z0(Y0,GC)+A0.c2;U0=HC;
+#ifdef AB
+if(AB){N0=T7(j2(A0.k2),A0.D2,i0);}
+#endif
+g N=K3(i0);k0(U0);
+#ifdef AB
+k0(N0);
+#endif
+D1(N);}
+#endif
+#endif
+#ifdef TE
+#ifdef CB
+A1(a0)B1
+#endif
+h2 a2
+#ifdef CB
+C1(YB,a0,G,v,T){U l2;l2.x=(v&1)==0?k.U7.x:k.U7.z;l2.y=(v&2)==0?k.U7.y:k.U7.w;g N=K3(c(l2));D1(N);}
+#endif
+#endif
+#ifdef AE
+#endif
+#if defined(BE)&&!defined(K)
+#endif
+#ifdef FB
+J1
+#ifndef K
+#ifdef CE
+#define y9 CE
 #else
-#define LOCAL_COLOR_PLANE_IDX  COLOR_PLANE_IDX
+#define y9 Q2
 #endif
-#ifdef EXPORTED_COALESCED_PLS_RESOLVE_AND_TRANSFER
-PLS_DECL4F_READONLY(LOCAL_COLOR_PLANE_IDX, colorBuffer);
+#ifdef SC
+n4(y9,g0);
 #else
-PLS_DECL4F(LOCAL_COLOR_PLANE_IDX, colorBuffer);
+r0(y9,g0);
 #endif
-#endif // !FIXED_FUNCTION_COLOR_OUTPUT
-#ifdef EXPORTED_PLS_BLEND_SRC_OVER
-// When PLS has src-over blending enabled, the clip buffer is RGBA8 so we
-// can preserve clip contents by emitting a=0 instead of loading the current
-// value. This is also is a hint to the hardware that it doesn't need to
-// write anything to the clip attachment.
-#define CLIP_VALUE_TYPE  half4
-#define PLS_LOAD_CLIP_TYPE  PLS_LOAD4F
-#define MAKE_NON_UPDATING_CLIP_VALUE  make_half4(.0)
-#define HAS_UPDATED_CLIP_VALUE(X)  ((X).w != .0)
-#ifdef EXPORTED_ENABLE_CLIPPING
-#ifndef EXPORTED_RESOLVE_PLS
-PLS_DECL4F(CLIP_PLANE_IDX, clipBuffer);
-#else
-PLS_DECL4F_READONLY(CLIP_PLANE_IDX, clipBuffer);
 #endif
-#endif // ENABLE_CLIPPING
+#ifdef OC
+#define o4 i
+#define z9 H0
+#define V7 B0(.0)
+#define ub(q) ((q).w!=.0)
+#ifdef O
+#ifndef IC
+r0(R2,d0);
 #else
-// When PLS does not have src-over blending, the clip buffer the usual
-// packed R32UI.
-#define CLIP_VALUE_TYPE  uint
-#define MAKE_NON_UPDATING_CLIP_VALUE  0u
-#define PLS_LOAD_CLIP_TYPE  PLS_LOADUI
-#define HAS_UPDATED_CLIP_VALUE(X)  ((X) != 0u)
-#ifdef EXPORTED_ENABLE_CLIPPING
-PLS_DECLUI(CLIP_PLANE_IDX, clipBuffer);
-#endif // ENABLE_CLIPPING
-#endif // !PLS_BLEND_SRC_OVER
-PLS_DECLUI_UAV(COVERAGE_PLANE_IDX, coverageAtomicBuffer);
-PLS_BLOCK_END
-
-FRAG_STORAGE_BUFFER_BLOCK_BEGIN
-STORAGE_BUFFER_U32x2(PAINT_BUFFER_IDX, PaintBuffer, EXPORTED_paintBuffer);
-STORAGE_BUFFER_F32x4(PAINT_AUX_BUFFER_IDX, PaintAuxBuffer, EXPORTED_paintAuxBuffer);
-FRAG_STORAGE_BUFFER_BLOCK_END
-
-INLINE uint to_fixed(float x)
-{
-    return uint(round(x * FIXED_COVERAGE_PRECISION + FIXED_COVERAGE_ZERO));
-}
-
-INLINE half from_fixed(uint x)
-{
-    return cast_float_to_half(
-        float(x) * FIXED_COVERAGE_INVERSE_PRECISION +
-        (-FIXED_COVERAGE_ZERO * FIXED_COVERAGE_INVERSE_PRECISION));
-}
-
-ushort apply_driver_workaround_for_path_id(ushort pathID)
-{
-#ifdef EXPORTED_NEEDS_PATH_ID_CLAMP_WORKAROUND
-    // We have observed that on some hardware, inactive threads or helper lanes
-    // appear to issue calls that access storage textures, even though they
-    // should be NO-OP. clamping the path ID prevents crashes in these
-    // scenarios.
-    pathID = min(pathID, uniforms.maxPathId);
+n4(R2,d0);
 #endif
-    return pathID;
-}
-
-#ifdef EXPORTED_ENABLE_CLIPPING
-INLINE void apply_clip(uint clipID,
-                       CLIP_VALUE_TYPE clipData,
-                       INOUT(half) coverage)
-{
-#ifdef EXPORTED_PLS_BLEND_SRC_OVER
-    // The clipID is packed into r & g of clipData. Use a fuzzy equality test
-    // since we lose precision when the clip value gets stored to and from the
-    // attachment.
-    if (all(lessThan(abs(clipData.xy - unpackUnorm4x8(clipID).xy),
-                     make_half2(.25 / 255.))))
-        coverage = min(coverage, clipData.z);
-    else
-        coverage = .0;
+#endif
 #else
-    // The clipID is the top 16 bits of clipData.
-    if (clipID == clipData >> 16)
-        coverage = min(coverage, unpackHalf2x16(clipData).x);
-    else
-        coverage = .0;
+#define o4 uint
+#define V7 0u
+#define z9 d1
+#define ub(q) ((q)!=0u)
+#ifdef O
+k1(R2,d0);
+#endif
+#endif
+E2(F6,p4);K1 N3 J5(vb,Be,TC);K5(wb,Ce,PB);O3 e uint De(float x){return uint(round(x*A9+B9));}e d W7(uint x){return m4(float(x)*xb+(-B9*xb));}X X7(X l0){
+#ifdef UE
+l0=min(l0,k.Ee);
+#endif
+return l0;}
+#ifdef O
+e void yb(uint V0,o4 O0,T4(d)n){
+#ifdef OC
+if(all(lessThan(abs(O0.xy-unpackUnorm4x8(V0).xy),A2(.25/255.))))n=min(n,O0.z);else n=.0;
+#else
+if(V0==O0>>16)n=min(n,unpackHalf2x16(O0).x);else n=.0;
 #endif
 }
 #endif
-
-INLINE void resolve_paint(uint pathID,
-                          half coverageCount,
-                          OUT(half4) fragColorOut
-#if defined(EXPORTED_ENABLE_CLIPPING) && !defined(EXPORTED_RESOLVE_PLS)
-                          ,
-                          INOUT(CLIP_VALUE_TYPE) fragClipOut
+e void Y7(uint l0,d m0,e1(i)P
+#if defined(O)&&!defined(IC)
+,T4(o4)q1
 #endif
-                              FRAGMENT_CONTEXT_DECL PLS_CONTEXT_DECL)
-{
-    uint2 paintData = STORAGE_BUFFER_LOAD2(EXPORTED_paintBuffer, pathID);
-    half coverage = coverageCount;
-    if ((paintData.x & (PAINT_FLAG_NON_ZERO_FILL | PAINT_FLAG_EVEN_ODD_FILL)) !=
-        0u)
-    {
-        // This path has a legacy (non-clockwise) fill.
-        coverage = abs(coverage);
-#ifdef EXPORTED_ENABLE_EVEN_ODD
-        if (EXPORTED_ENABLE_EVEN_ODD && (paintData.x & PAINT_FLAG_EVEN_ODD_FILL) != 0u)
-        {
-            coverage = 1. - abs(fract(coverage * .5) * 2. + -1.);
-        }
+G6 P3){W0 r1=L5(TC,l0);d n=m0;if((r1.x&(Fe|C9))!=0u){n=abs(n);
+#ifdef PC
+if(PC&&(r1.x&C9)!=0u){n=1.-abs(fract(n*.5)*2.+-1.);}
 #endif
-    }
-    // This also caps stroke coverage, which can be >1.
-    coverage = clamp(coverage, make_half(.0), make_half(1.));
-#ifdef EXPORTED_ENABLE_CLIPPING
-    if (EXPORTED_ENABLE_CLIPPING)
-    {
-        uint clipID = paintData.x >> 16u;
-        if (clipID != 0u)
-        {
-            apply_clip(clipID, PLS_LOAD_CLIP_TYPE(clipBuffer), coverage);
-        }
-    }
-#endif // ENABLE_CLIPPING
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-    if (EXPORTED_ENABLE_CLIP_RECT && (paintData.x & PAINT_FLAG_HAS_CLIP_RECT) != 0u)
-    {
-        float2x2 M = make_float2x2(
-            STORAGE_BUFFER_LOAD4(EXPORTED_paintAuxBuffer, pathID * 4u + 2u));
-        float4 translate =
-            STORAGE_BUFFER_LOAD4(EXPORTED_paintAuxBuffer, pathID * 4u + 3u);
-        float2 clipCoord = MUL(M, _fragCoord) + translate.xy;
-        // translate.zw contains -1 / fwidth(clipCoord), which we use to
-        // calculate antialiasing.
-        half2 distXY =
-            cast_float2_to_half2(abs(clipCoord) * translate.zw - translate.zw);
-        half clipRectCoverage = clamp(min(distXY.x, distXY.y) + .5, .0, 1.);
-        coverage = min(coverage, clipRectCoverage);
-    }
-#endif // ENABLE_CLIP_RECT
-    uint paintType = paintData.x & 0xfu;
-    if (paintType <= SOLID_COLOR_PAINT_TYPE) // CLIP_UPDATE_PAINT_TYPE or
-                                             // SOLID_COLOR_PAINT_TYPE
-    {
-        fragColorOut = unpackUnorm4x8(paintData.y);
-#ifdef EXPORTED_ENABLE_CLIPPING
-        if (EXPORTED_ENABLE_CLIPPING && paintType == CLIP_UPDATE_PAINT_TYPE)
-        {
-#ifndef EXPORTED_RESOLVE_PLS
-#ifdef EXPORTED_PLS_BLEND_SRC_OVER
-            // This was actually a clip update. fragColorOut contains the packed
-            // clipID.
-            fragClipOut.xy = fragColorOut.zw; // Pack the clipID into r & g.
-            fragClipOut.z = coverage;         // Put the clipCoverage in b.
-            fragClipOut.w =
-                1.; // a=1 so we replace the value in the clipBuffer.
+}n=clamp(n,G0(.0),G0(1.));
+#ifdef O
+if(O){uint V0=r1.x>>16u;if(V0!=0u){yb(V0,z9(d0),n);}}
+#endif
+#ifdef AB
+if(AB&&(r1.x&Ge)!=0u){Z Y0=j2(P0(PB,l0*4u+2u));g c2=P0(PB,l0*4u+3u);c He=Z0(Y0,S)+c2.xy;D zb=R7(abs(He)*c2.zw-c2.zw);d U4=clamp(min(zb.x,zb.y)+.5,.0,1.);n=min(n,U4);}
+#endif
+uint j3=r1.x&0xfu;if(j3<=Ab){P=unpackUnorm4x8(r1.y);
+#ifdef O
+if(O&&j3==Z7){
+#ifndef IC
+#ifdef OC
+q1.xy=P.zw;q1.z=n;q1.w=1.;
 #else
-            fragClipOut = paintData.y | packHalf2x16(make_half2(coverage, .0));
+q1=r1.y|packHalf2x16(A2(n,.0));
 #endif
 #endif
-            // Don't update the colorBuffer when this is a clip update.
-            fragColorOut = make_half4(.0);
-        }
+P=B0(.0);}
 #endif
-    }
-    else // LINEAR_GRADIENT_PAINT_TYPE or RADIAL_GRADIENT_PAINT_TYPE
-    {
-        float2x2 M =
-            make_float2x2(STORAGE_BUFFER_LOAD4(EXPORTED_paintAuxBuffer, pathID * 4u));
-        float4 translate =
-            STORAGE_BUFFER_LOAD4(EXPORTED_paintAuxBuffer, pathID * 4u + 1u);
-        float2 paintCoord = MUL(M, _fragCoord) + translate.xy;
-        float t = paintType == LINEAR_GRADIENT_PAINT_TYPE
-                      ? /*linear*/ paintCoord.x
-                      : /*radial*/ length(paintCoord);
-        t = clamp(t, .0, 1.);
-        float x = t * translate.z + translate.w;
-        float y = uintBitsToFloat(paintData.y);
-        fragColorOut =
-            TEXTURE_SAMPLE_LOD(EXPORTED_gradTexture, gradSampler, float2(x, y), .0);
-    }
-    fragColorOut.w *= coverage;
-
-#if !defined(EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT) && defined(EXPORTED_ENABLE_ADVANCED_BLEND)
-    // Apply the advanced blend mode, if applicable.
-    ushort blendMode;
-    if (EXPORTED_ENABLE_ADVANCED_BLEND && fragColorOut.w != .0 &&
-        (blendMode = cast_uint_to_ushort((paintData.x >> 4) & 0xfu)) !=
-            BLEND_SRC_OVER)
-    {
-        half4 dstColorPremul = PLS_LOAD4F(colorBuffer);
-        fragColorOut.xyz =
-            advanced_color_blend(fragColorOut.xyz, dstColorPremul, blendMode);
-    }
-#endif // !FIXED_FUNCTION_COLOR_OUTPUT && ENABLE_ADVANCED_BLEND
-
-// Certain platforms give us less control of the format of what we are
-// rendering too. Specifically, we are auto converted from linear -> sRGB on
-// render target writes in unreal. In those cases we made need to end up in
-// linear color space
-#if defined(EXPORTED_NEEDS_GAMMA_CORRECTION) &&                                        \
-    (defined(EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT) || defined(EXPORTED_RESOLVE_PLS))
-    fragColorOut = gamma_to_linear(fragColorOut);
+}else{Z Y0=j2(P0(PB,l0*4u));g c2=P0(PB,l0*4u+1u);c V4=Z0(Y0,S)+c2.xy;float t=j3==E9?V4.x:length(V4);t=clamp(t,.0,1.);float x=t*c2.z+c2.w;float y=uintBitsToFloat(r1.y);P=m2(DD,Bb,c(x,y),.0);}P.w*=n;
+#if!defined(K)&&defined(GB)
+X n2;if(GB&&P.w!=.0&&(n2=i2((r1.x>>4)&0xfu))!=M5){i L1=H0(g0);P.xyz=Q4(P.xyz,L1,n2);}
 #endif
-
-    fragColorOut.xyz *= fragColorOut.w;
-}
-
-#if !defined(EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT) &&                                  \
-    !defined(EXPORTED_COALESCED_PLS_RESOLVE_AND_TRANSFER)
-INLINE void blend_pls_color_src_over(half4 fragColorOut PLS_CONTEXT_DECL)
-{
-#ifndef EXPORTED_PLS_BLEND_SRC_OVER
-    if (fragColorOut.w == .0)
-        return;
-    float oneMinusSrcAlpha = 1. - fragColorOut.w;
-    if (oneMinusSrcAlpha != .0)
-        fragColorOut += PLS_LOAD4F(colorBuffer) * oneMinusSrcAlpha;
+#if defined(UB)&&(defined(K)||defined(IC))
+P=k3(P);
 #endif
-    PLS_STORE4F(colorBuffer, fragColorOut);
-}
-#endif // !@FIXED_FUNCTION_COLOR_OUTPUT &&
-       // !@COALESCED_PLS_RESOLVE_AND_TRANSFER
-
-#if defined(EXPORTED_ENABLE_CLIPPING) && !defined(EXPORTED_RESOLVE_PLS)
-INLINE void emit_pls_clip(CLIP_VALUE_TYPE fragClipOut PLS_CONTEXT_DECL)
-{
-#ifdef EXPORTED_PLS_BLEND_SRC_OVER
-    PLS_STORE4F(clipBuffer, fragClipOut);
+P.xyz*=P.w;}
+#if!defined(K)&&!defined(SC)
+e void a8(i P P3){
+#ifndef OC
+if(P.w==.0)return;float H6=1.-P.w;if(H6!=.0)P+=H0(g0)*H6;
+#endif
+v0(g0,P);}
+#endif
+#if defined(O)&&!defined(IC)
+e void F9(o4 q1 P3){
+#ifdef OC
+v0(d0,q1);
 #else
-    if (fragClipOut != 0u)
-        PLS_STOREUI(clipBuffer, fragClipOut);
+if(q1!=0u)f1(d0,q1);
 #endif
 }
-#endif // ENABLE_CLIPPING && !RESOLVE_PLS
-
-#ifdef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-#define ATOMIC_PLS_MAIN  PLS_FRAG_COLOR_MAIN
-#define ATOMIC_PLS_MAIN_WITH_IMAGE_UNIFORMS                                     \
-    PLS_FRAG_COLOR_MAIN_WITH_IMAGE_UNIFORMS
-#define EMIT_ATOMIC_PLS  EMIT_PLS_AND_FRAG_COLOR
-#else // !FIXED_FUNCTION_COLOR_OUTPUT
-#define ATOMIC_PLS_MAIN  PLS_MAIN
-#define ATOMIC_PLS_MAIN_WITH_IMAGE_UNIFORMS  PLS_MAIN_WITH_IMAGE_UNIFORMS
-#define EMIT_ATOMIC_PLS  EMIT_PLS
 #endif
-
-#ifdef EXPORTED_DRAW_PATH
-ATOMIC_PLS_MAIN(EXPORTED_drawFragmentMain)
-{
-#ifdef EXPORTED_ENABLE_FEATHER
-    VARYING_UNPACK(v_coverages, float4);
+#ifdef K
+#define I6 o2
+#define Cb r4
+#define N5 l3
 #else
-    VARYING_UNPACK(v_coverages, half2);
+#define I6 m1
+#define Cb O5
+#define N5 U1
 #endif
-    VARYING_UNPACK(v_pathID, ushort);
-
-    half fragmentCoverage;
-
-#ifdef EXPORTED_ENABLE_FEATHER
-    if (EXPORTED_ENABLE_FEATHER && is_feathered_stroke(v_coverages))
-    {
-        fragmentCoverage =
-            eval_feathered_stroke(v_coverages TEXTURE_CONTEXT_FORWARD);
-    }
-    else if (EXPORTED_ENABLE_FEATHER && is_feathered_fill(v_coverages))
-    {
-        fragmentCoverage =
-            eval_feathered_fill(v_coverages TEXTURE_CONTEXT_FORWARD);
-    }
-    else
-#endif
-    {
-        // Cover stroke and fill both in a branchless expression.
-        fragmentCoverage =
-            min(min(make_half(v_coverages.x), abs(make_half(v_coverages.y))),
-                make_half(1.));
-    }
-
-    half4 fragColorOut = make_half4(.0);
-#ifdef EXPORTED_ENABLE_CLIPPING
-    CLIP_VALUE_TYPE fragClipOut = MAKE_NON_UPDATING_CLIP_VALUE;
-#endif
-
-    // Since v_pathID increases monotonically with every draw, and since it
-    // lives in the most significant bits of the coverage data, an atomic max()
-    // function will serve 3 purposes:
-    //
-    //    * The invocation that changes the pathID is the single first fragment
-    //      invocation to hit the new path, and the one that should resolve the
-    //      previous path in the framebuffer.
-    //    * Properly resets coverage to zero when we do cross over into
-    //      processing a new path.
-    //    * Accumulates coverage for strokes.
-    //
-    uint fixedCoverage = to_fixed(fragmentCoverage);
-    uint minCoverageData =
-        (make_uint(v_pathID) << FIXED_COVERAGE_BIT_COUNT) | fixedCoverage;
-    uint lastCoverageData =
-        PLS_ATOMIC_MAX(coverageAtomicBuffer, minCoverageData);
-    ushort lastPathID =
-        cast_uint_to_ushort(lastCoverageData >> FIXED_COVERAGE_BIT_COUNT);
-
-    lastPathID = apply_driver_workaround_for_path_id(lastPathID);
-
-    if (lastPathID == v_pathID)
-    {
-        // This is not the first fragment of the current path to touch this
-        // pixel. We already resolved the previous path, so just update coverage
-        // (if we're a fill) and move on.
-        if (!is_stroke(v_coverages))
-        {
-            // Only apply the effect of the min() the first time we cross into a
-            // path.
-            fixedCoverage +=
-                lastCoverageData - max(minCoverageData, lastCoverageData);
-            fixedCoverage -=
-                FIXED_COVERAGE_ZERO_UINT; // Only apply the zero bias once.
-            PLS_ATOMIC_ADD(coverageAtomicBuffer,
-                           fixedCoverage); // Count coverage.
-        }
-    }
-    else
-    {
-        // We crossed into a new path! Resolve the previous path now that we
-        // know its exact coverage.
-        half coverageCount = from_fixed(lastCoverageData & FIXED_COVERAGE_MASK);
-        resolve_paint(lastPathID,
-                      coverageCount,
-                      fragColorOut
-#ifdef EXPORTED_ENABLE_CLIPPING
-                      ,
-                      fragClipOut
-#endif
-                          FRAGMENT_CONTEXT_UNPACK PLS_CONTEXT_UNPACK);
-    }
-
-    fragColorOut.xyz = add_dither(fragColorOut.xyz,
-                                  _fragCoord.xy,
-                                  uniforms.ditherScale,
-                                  uniforms.ditherBias);
-#ifdef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-    _fragColor = fragColorOut;
+#ifdef BD
+I6(IB){
+#ifdef HB
+B(I,g);
 #else
-    blend_pls_color_src_over(fragColorOut PLS_CONTEXT_UNPACK);
+B(I,D);
 #endif
-#ifdef EXPORTED_ENABLE_CLIPPING
-    emit_pls_clip(fragClipOut PLS_CONTEXT_UNPACK);
+B(z0,X);d c8;
+#ifdef HB
+if(HB&&Db(I)){c8=v4(I g1);}else if(HB&&Eb(I)){c8=d8(I g1);}else
 #endif
-
-    EMIT_ATOMIC_PLS
+{c8=min(min(G0(I.x),abs(G0(I.y))),G0(1.));}i P=B0(.0);
+#ifdef O
+o4 q1=V7;
+#endif
+uint e8=De(c8);uint Fb=(Gb(z0)<<P5)|e8;uint p2=W4(p4,Fb);X E1=i2(p2>>P5);E1=X7(E1);if(E1==z0){if(!Q5(I)){e8+=p2-max(Fb,p2);e8-=G9;X4(p4,e8);}}else{d m0=W7(p2&f8);Y7(E1,m0,P
+#ifdef O
+,q1
+#endif
+S2 M1);}P.xyz=Q3(P.xyz,S.xy,k.y3,k.z3);
+#ifdef K
+l1=P;
+#else
+a8(P M1);
+#endif
+#ifdef O
+F9(q1 M1);
+#endif
+N5}
+#endif
+#if defined(DB)||defined(EB)
+I6(IB){
+#ifdef EB
+B(C2,c);
+#else
+B(j1,d);
+#endif
+B(z0,X);uint p2=T2(p4);X E1=i2(p2>>P5);E1=X7(E1);uint H9;
+#ifndef EB
+if(E1==z0){H9=p2;}else
+#endif
+{H9=(Gb(z0)<<P5)+G9;}d n;
+#ifdef EB
+n=clamp(m2(UC,I9,C2,.0).x,G0(.0),G0(1.));
+#else
+n=j1;
+#endif
+int Ie=int(round(n*A9));U2(p4,H9+uint(Ie));i P=B0(.0);
+#ifdef O
+o4 q1=V7;
+#endif
+#ifndef EB
+if(E1!=z0)
+#endif
+{d J9=W7(p2&f8);Y7(E1,J9,P
+#ifdef O
+,q1
+#endif
+S2 M1);}P.xyz=Q3(P.xyz,S.xy,k.y3,k.z3);
+#ifdef K
+l1=P;
+#else
+a8(P M1);
+#endif
+#ifdef O
+F9(q1 M1);
+#endif
+N5}
+#endif
+#ifdef AE
+Cb(IB){B(U0,c);
+#ifdef CD
+B(S4,d);
+#endif
+#ifdef AB
+B(N0,g);
+#endif
+i w4=g8(AC,R5,U0);d S5=1.;
+#ifdef CD
+S5=min(S4,S5);
+#endif
+#ifdef AB
+if(AB){d U4=g3(Y4(N0));S5=clamp(U4,G0(.0),S5);}
+#endif
+uint p2=T2(p4);X E1=i2(p2>>P5);E1=X7(E1);d J9=W7(p2&f8);i P;
+#ifdef O
+o4 q1=V7;
+#endif
+Y7(E1,J9,P
+#ifdef O
+,q1
+#endif
+S2 M1);
+#ifdef O
+if(O&&A0.V0!=0u){o4 O0=ub(q1)?q1:z9(d0);yb(A0.V0,O0,S5);}
+#endif
+#if!defined(K)&&defined(GB)
+if(GB&&A0.n2!=M5){i L1=H0(g0)*(1.-P.w)+P;w4.xyz=Q4(B6(w4),L1,i2(A0.n2))*w4.w;}
+#endif
+w4*=S5*m4(A0.x4);
+#if defined(UB)
+w4=k3(w4);
+#endif
+P=P*(1.-w4.w)+w4;P.xyz=Q3(P.xyz,S.xy,k.y3,k.z3);
+#ifdef K
+l1=P;
+#else
+a8(P M1);
+#endif
+#ifdef O
+F9(q1 M1);
+#endif
+U2(p4,G9);N5}
+#endif
+#ifdef BE
+I6(IB){
+#ifndef K
+#ifdef ED
+if(ED){v0(g0,unpackUnorm4x8(k.Je));}
+#endif
+#ifdef FD
+if(FD){v0(g0,v1(AC,E));}
+#endif
+#ifdef VE
+i j=H0(g0);v0(g0,j.zyxw);
+#endif
+#endif
+U2(p4,k.Ke);
+#ifdef O
+if(O){f1(d0,0u);}
+#endif
+#ifdef K
+discard;
+#endif
+N5}
+#endif
+#ifdef IC
+#ifdef SC
+o2(IB)
+#else
+I6(IB)
+#endif
+{uint p2=T2(p4);d m0=W7(p2&f8);X E1=i2(p2>>P5);E1=X7(E1);i P;Y7(E1,m0,P S2 M1);
+#ifdef SC
+float H6=1.-P.w;if(H6!=.0)P+=H0(g0)*H6;l1=P;l3
+#else
+P.xyz=Q3(P.xyz,S.xy,k.y3,k.z3);
+#ifdef K
+l1=P;
+#else
+a8(P M1);
+#endif
+N5
+#endif
 }
-#endif // DRAW_PATH
-
-#if defined(EXPORTED_DRAW_INTERIOR_TRIANGLES) || defined(EXPORTED_ATLAS_BLIT)
-ATOMIC_PLS_MAIN(EXPORTED_drawFragmentMain)
-{
-#ifdef EXPORTED_ATLAS_BLIT
-    VARYING_UNPACK(v_atlasCoord, float2);
-#else
-    VARYING_UNPACK(v_windingWeight, half);
 #endif
-    VARYING_UNPACK(v_pathID, ushort);
-
-    uint lastCoverageData = PLS_LOADUI_UAV(coverageAtomicBuffer);
-    ushort lastPathID =
-        cast_uint_to_ushort(lastCoverageData >> FIXED_COVERAGE_BIT_COUNT);
-    lastPathID = apply_driver_workaround_for_path_id(lastPathID);
-    // Update coverageAtomicBuffer with the coverage weight of the current
-    // triangle. This does not need to be atomic since interior triangles don't
-    // overlap.
-    uint currPathCoverageData;
-#ifndef EXPORTED_ATLAS_BLIT
-    if (lastPathID == v_pathID)
-    {
-        currPathCoverageData = lastCoverageData;
-    }
-    else
 #endif
-    {
-        currPathCoverageData =
-            (make_uint(v_pathID) << FIXED_COVERAGE_BIT_COUNT) +
-            FIXED_COVERAGE_ZERO_UINT;
-    }
-
-    half coverage;
-#ifdef EXPORTED_ATLAS_BLIT
-    coverage = clamp(
-        TEXTURE_SAMPLE_LOD(EXPORTED_atlasTexture, atlasSampler, v_atlasCoord, .0).x,
-        make_half(.0),
-        make_half(1.));
-#else
-    coverage = v_windingWeight;
-#endif
-
-    int coverageDeltaFixed = int(round(coverage * FIXED_COVERAGE_PRECISION));
-    PLS_STOREUI_UAV(coverageAtomicBuffer,
-                    currPathCoverageData + uint(coverageDeltaFixed));
-
-    half4 fragColorOut = make_half4(.0);
-#ifdef EXPORTED_ENABLE_CLIPPING
-    CLIP_VALUE_TYPE fragClipOut = MAKE_NON_UPDATING_CLIP_VALUE;
-#endif
-
-#ifndef EXPORTED_ATLAS_BLIT
-    // If this is not the first fragment of the current path to touch this
-    // pixel, then we've already resolved the previous path and can move on.
-    if (lastPathID != v_pathID)
-#endif
-    {
-        // We crossed into a new path! Resolve the previous path now that we
-        // know its exact coverage.
-        half lastCoverageCount =
-            from_fixed(lastCoverageData & FIXED_COVERAGE_MASK);
-        resolve_paint(lastPathID,
-                      lastCoverageCount,
-                      fragColorOut
-#ifdef EXPORTED_ENABLE_CLIPPING
-                      ,
-                      fragClipOut
-#endif
-                          FRAGMENT_CONTEXT_UNPACK PLS_CONTEXT_UNPACK);
-    }
-
-    fragColorOut.xyz = add_dither(fragColorOut.xyz,
-                                  _fragCoord.xy,
-                                  uniforms.ditherScale,
-                                  uniforms.ditherBias);
-#ifdef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-    _fragColor = fragColorOut;
-#else
-    blend_pls_color_src_over(fragColorOut PLS_CONTEXT_UNPACK);
-#endif
-#ifdef EXPORTED_ENABLE_CLIPPING
-    emit_pls_clip(fragClipOut PLS_CONTEXT_UNPACK);
-#endif
-
-    EMIT_ATOMIC_PLS
-}
-#endif // @DRAW_INTERIOR_TRIANGLES || @ATLAS_BLIT
-
-#ifdef EXPORTED_DRAW_IMAGE
-ATOMIC_PLS_MAIN_WITH_IMAGE_UNIFORMS(EXPORTED_drawFragmentMain)
-{
-    VARYING_UNPACK(v_texCoord, float2);
-#ifdef EXPORTED_DRAW_IMAGE_RECT
-    VARYING_UNPACK(v_edgeCoverage, half);
-#endif
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-    VARYING_UNPACK(v_clipRect, float4);
-#endif
-
-    // Start by finding the image color. We have to do this immediately instead
-    // of allowing it to get resolved later like other draws because the
-    // @imageTexture binding is liable to change, and furthermore in the case of
-    // imageMeshes, we can't calculate UV coordinates based on fragment
-    // position.
-    half4 imageColor =
-        TEXTURE_SAMPLE_DYNAMIC(EXPORTED_imageTexture, imageSampler, v_texCoord);
-    half imageCoverage = 1.;
-#ifdef EXPORTED_DRAW_IMAGE_RECT
-    imageCoverage = min(v_edgeCoverage, imageCoverage);
-#endif
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-    if (EXPORTED_ENABLE_CLIP_RECT)
-    {
-        half clipRectCoverage = min_component(cast_float4_to_half4(v_clipRect));
-        imageCoverage = clamp(clipRectCoverage, make_half(.0), imageCoverage);
-    }
-#endif
-
-    // Resolve the previous path.
-    uint lastCoverageData = PLS_LOADUI_UAV(coverageAtomicBuffer);
-    ushort lastPathID =
-        cast_uint_to_ushort(lastCoverageData >> FIXED_COVERAGE_BIT_COUNT);
-    lastPathID = apply_driver_workaround_for_path_id(lastPathID);
-    half lastCoverageCount = from_fixed(lastCoverageData & FIXED_COVERAGE_MASK);
-    half4 fragColorOut;
-#ifdef EXPORTED_ENABLE_CLIPPING
-    CLIP_VALUE_TYPE fragClipOut = MAKE_NON_UPDATING_CLIP_VALUE;
-#endif
-    // TODO: consider not resolving the prior paint if we're solid and the prior
-    // paint is not a clip update: (imageColor.a == 1. &&
-    //                              imageDrawUniforms.blendMode ==
-    //                              BLEND_SRC_OVER && priorPaintType !=
-    //                              CLIP_UPDATE_PAINT_TYPE)
-    resolve_paint(lastPathID,
-                  lastCoverageCount,
-                  fragColorOut
-#ifdef EXPORTED_ENABLE_CLIPPING
-                  ,
-                  fragClipOut
-#endif
-                      FRAGMENT_CONTEXT_UNPACK PLS_CONTEXT_UNPACK);
-
-// Clip the image after resolving the previous path, since that can affect
-// the clip buffer.
-#ifdef EXPORTED_ENABLE_CLIPPING // TODO! ENABLE_IMAGE_CLIPPING in addition to
-                        // ENABLE_CLIPPING?
-    if (EXPORTED_ENABLE_CLIPPING && imageDrawUniforms.clipID != 0u)
-    {
-        CLIP_VALUE_TYPE clipData = HAS_UPDATED_CLIP_VALUE(fragClipOut)
-                                       ? fragClipOut
-                                       : PLS_LOAD_CLIP_TYPE(clipBuffer);
-        apply_clip(imageDrawUniforms.clipID, clipData, imageCoverage);
-    }
-#endif // ENABLE_CLIPPING
-
-// Prepare imageColor for premultiplied src-over blending.
-#if !defined(EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT) && defined(EXPORTED_ENABLE_ADVANCED_BLEND)
-    if (EXPORTED_ENABLE_ADVANCED_BLEND && imageDrawUniforms.blendMode != BLEND_SRC_OVER)
-    {
-        // Calculate what dstColorPremul will be after applying fragColorOut.
-        half4 dstColorPremul =
-            PLS_LOAD4F(colorBuffer) * (1. - fragColorOut.w) + fragColorOut;
-        // Calculate the imageColor to emit *BEFORE* src-over blending, such
-        // that the post-src-over-blend result is equivalent to the blendMode.
-        imageColor.xyz = advanced_color_blend(
-                             unmultiply_rgb(imageColor),
-                             dstColorPremul,
-                             cast_uint_to_ushort(imageDrawUniforms.blendMode)) *
-                         imageColor.w;
-    }
-#endif // !FIXED_FUNCTION_COLOR_OUTPUT && ENABLE_ADVANCED_BLEND
-    imageColor *= imageCoverage * cast_float_to_half(imageDrawUniforms.opacity);
-
-#if defined(EXPORTED_NEEDS_GAMMA_CORRECTION)
-    imageColor = gamma_to_linear(imageColor);
-#endif
-
-    // Leverage the property that premultiplied src-over blending is associative
-    // and blend the imageColor and fragColorOut before passing them on to the
-    // blending pipeline.
-    fragColorOut = fragColorOut * (1. - imageColor.w) + imageColor;
-
-    fragColorOut.xyz = add_dither(fragColorOut.xyz,
-                                  _fragCoord.xy,
-                                  uniforms.ditherScale,
-                                  uniforms.ditherBias);
-#ifdef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-    _fragColor = fragColorOut;
-#else
-    blend_pls_color_src_over(fragColorOut PLS_CONTEXT_UNPACK);
-#endif
-#ifdef EXPORTED_ENABLE_CLIPPING
-    emit_pls_clip(fragClipOut PLS_CONTEXT_UNPACK);
-#endif
-
-    // Write out a coverage value of "zero at pathID=0" so a future resolve
-    // attempt doesn't affect this pixel.
-    PLS_STOREUI_UAV(coverageAtomicBuffer, FIXED_COVERAGE_ZERO_UINT);
-
-    EMIT_ATOMIC_PLS
-}
-#endif // DRAW_IMAGE
-
-#ifdef EXPORTED_INITIALIZE_PLS
-
-ATOMIC_PLS_MAIN(EXPORTED_drawFragmentMain)
-{
-#ifdef EXPORTED_STORE_COLOR_CLEAR
-    PLS_STORE4F(colorBuffer, unpackUnorm4x8(uniforms.colorClearValue));
-#endif
-#ifdef EXPORTED_SWIZZLE_COLOR_BGRA_TO_RGBA
-    half4 color = PLS_LOAD4F(colorBuffer);
-    PLS_STORE4F(colorBuffer, color.zyxw);
-#endif
-    PLS_STOREUI_UAV(coverageAtomicBuffer, uniforms.coverageClearValue);
-#ifdef EXPORTED_ENABLE_CLIPPING
-    if (EXPORTED_ENABLE_CLIPPING)
-    {
-        PLS_STOREUI(clipBuffer, 0u);
-    }
-#endif
-#ifdef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-    discard;
-#endif
-    EMIT_ATOMIC_PLS
-}
-
-#endif // INITIALIZE_PLS
-
-#ifdef EXPORTED_RESOLVE_PLS
-
-#ifdef EXPORTED_COALESCED_PLS_RESOLVE_AND_TRANSFER
-PLS_FRAG_COLOR_MAIN(EXPORTED_drawFragmentMain)
-#else
-ATOMIC_PLS_MAIN(EXPORTED_drawFragmentMain)
-#endif
-{
-    uint lastCoverageData = PLS_LOADUI_UAV(coverageAtomicBuffer);
-    half coverageCount = from_fixed(lastCoverageData & FIXED_COVERAGE_MASK);
-    ushort lastPathID =
-        cast_uint_to_ushort(lastCoverageData >> FIXED_COVERAGE_BIT_COUNT);
-    lastPathID = apply_driver_workaround_for_path_id(lastPathID);
-    half4 fragColorOut;
-    resolve_paint(lastPathID,
-                  coverageCount,
-                  fragColorOut FRAGMENT_CONTEXT_UNPACK PLS_CONTEXT_UNPACK);
-#ifdef EXPORTED_COALESCED_PLS_RESOLVE_AND_TRANSFER
-    float oneMinusSrcAlpha = 1. - fragColorOut.w;
-    if (oneMinusSrcAlpha != .0)
-        fragColorOut += PLS_LOAD4F(colorBuffer) * oneMinusSrcAlpha;
-    _fragColor = fragColorOut;
-    EMIT_PLS_AND_FRAG_COLOR
-#else
-
-    fragColorOut.xyz = add_dither(fragColorOut.xyz,
-                                  _fragCoord.xy,
-                                  uniforms.ditherScale,
-                                  uniforms.ditherBias);
-#ifdef EXPORTED_FIXED_FUNCTION_COLOR_OUTPUT
-    _fragColor = fragColorOut;
-#else
-    blend_pls_color_src_over(fragColorOut PLS_CONTEXT_UNPACK);
-#endif
-
-    EMIT_ATOMIC_PLS
-#endif // COALESCED_PLS_RESOLVE_AND_TRANSFER
-}
-#endif // RESOLVE_PLS
-#endif // FRAGMENT
 )===";
 } // namespace glsl
 } // namespace gpu

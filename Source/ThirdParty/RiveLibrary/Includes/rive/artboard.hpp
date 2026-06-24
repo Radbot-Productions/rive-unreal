@@ -21,6 +21,8 @@
 #include "rive/typed_children.hpp"
 #include "rive/virtualizing_component.hpp"
 #include "rive/input/focus_node.hpp"
+#include "rive/semantic/semantic_node.hpp"
+#include "rive/lua/scripting_vm.hpp"
 
 #include <queue>
 #include <unordered_set>
@@ -53,6 +55,8 @@ class DataBind;
 class DataBindContainer;
 class ScriptedObject;
 class FocusManager;
+class SemanticManager;
+class SemanticNode;
 
 #ifdef WITH_RIVE_TOOLS
 typedef void (*ArtboardCallback)(void*);
@@ -88,6 +92,9 @@ private:
     std::vector<ScriptedObject*> m_ScriptedObjects;
     std::vector<AdvancingComponent*> m_advancingComponents;
     rcp<DataContext> m_DataContext = nullptr;
+#ifdef WITH_RIVE_SCRIPTING
+    ScriptingVM* m_scriptingVM = nullptr;
+#endif
     bool m_JoysticksApplyBeforeUpdate = true;
 
     unsigned int m_DirtDepth = 0;
@@ -106,6 +113,8 @@ private:
     Artboard* parentArtboard() const;
     ArtboardHost* m_host = nullptr;
     FocusManager* m_activeFocusManager = nullptr;
+    SemanticManager* m_activeSemanticManager = nullptr;
+    rcp<SemanticNode> m_semanticBoundaryNode;
 #ifdef WITH_RIVE_TOOLS
     rcp<FocusNode> m_externalParentFocusNode;
 #endif
@@ -190,6 +199,40 @@ public:
     /// destroyed or recycled to prevent use-after-free when the FocusManager
     /// still holds references to FocusNodes pointing to deleted FocusData.
     void cleanupFocusTree();
+
+    /// Set the active SemanticManager for this artboard. The SemanticManager is
+    /// typically owned by a StateMachineInstance.
+    void setActiveSemanticManager(SemanticManager* manager)
+    {
+        m_activeSemanticManager = manager;
+    }
+    /// Get the active SemanticManager for this artboard.
+    SemanticManager* semanticManager() const { return m_activeSemanticManager; }
+
+    /// Build the semantic tree for this artboard, registering all SemanticData
+    /// nodes with the given SemanticManager.
+    void buildSemanticTree(SemanticManager* semanticManager,
+                           rcp<SemanticNode> parentSemanticNode = nullptr);
+
+    /// Clean up the semantic tree for this artboard, removing all SemanticData
+    /// nodes from the SemanticManager.
+    void cleanupSemanticTree();
+
+    // Semantic-only collapse for this artboard's semantic nodes.
+    // When collapsing, walks the boundary's semantic subtree (O(K) semantic
+    // nodes). When uncollapsing, falls back to m_Objects because
+    // SemanticData::collapse(false) re-parents nodes outside the boundary.
+    void collapseSemanticBoundary(bool value);
+
+    /// Mark bounds dirty for all semantic nodes under this artboard's
+    /// boundary node. Called when the host transform changes.
+    void markSemanticBoundaryTransformDirty();
+
+    /// Get the semantic boundary node for this artboard (null for root).
+    rcp<SemanticNode> semanticBoundaryNode() const
+    {
+        return m_semanticBoundaryNode;
+    }
 
     // Implemented for ShapePaintContainer.
     const Mat2D& shapeWorldTransform() const override
@@ -293,6 +336,20 @@ public:
     Drawable* firstDrawable() { return m_FirstDrawable; };
     void addScriptedObject(ScriptedObject* object);
 
+    void drawCanvases();
+    void internalDrawCanvases();
+
+    /// Poll async work (image decodes, etc.) so promises resolve before
+    /// script callbacks run. Called at the top of advance().
+    void pollAsyncWork();
+
+#ifdef WITH_RIVE_SCRIPTING
+    /// Returns the lua_State* (as void*) for the first drawCanvas scripted
+    /// object in this artboard or any nested artboard, recursively. Returns
+    /// nullptr if no drawCanvas scripts exist. Used by the Dart FFI layer to
+    /// open a GPU frame before calling drawCanvases().
+    void* findDrawCanvasLuauState() const;
+#endif
     void drawInternal(Renderer* renderer);
     void draw(Renderer* renderer) override;
     void addToRenderPath(RenderPath* path, const Mat2D& transform);
@@ -320,6 +377,9 @@ public:
         return m_ComponentLists;
     }
     rcp<DataContext> dataContext() { return m_DataContext; }
+#ifdef WITH_RIVE_SCRIPTING
+    void scriptingVM(ScriptingVM* value) { m_scriptingVM = value; }
+#endif
     NestedArtboard* nestedArtboard(const std::string& name) const;
     NestedArtboard* nestedArtboardAtPath(const std::string& path) const;
 
@@ -604,6 +664,10 @@ public:
     ArtboardInstance();
     ~ArtboardInstance() override;
 
+    /// Holds a reference to the File that vended this instance so the File
+    /// outlives the instance.
+    void file(rcp<const File> file);
+
     std::unique_ptr<LinearAnimationInstance> animationAt(size_t index);
     std::unique_ptr<LinearAnimationInstance> animationNamed(
         const std::string& name);
@@ -631,6 +695,9 @@ public:
     SMINumber* getNumber(const std::string& name, const std::string& path);
     SMITrigger* getTrigger(const std::string& name, const std::string& path);
     TextValueRun* getTextRun(const std::string& name, const std::string& path);
+
+private:
+    rcp<const File> m_file;
 };
 } // namespace rive
 

@@ -5,58 +5,21 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char specialization[] = R"===(#ifndef EXPORTED_SPEC_CONST_NONE
-
-layout(constant_id = CLIPPING_SPECIALIZATION_IDX) const
-    bool kEnableClipping = true;
-layout(constant_id = CLIP_RECT_SPECIALIZATION_IDX) const
-    bool kEnableClipRect = true;
-layout(constant_id = ADVANCED_BLEND_SPECIALIZATION_IDX) const
-    bool kEnableAdvancedBlend = true;
-layout(constant_id = FEATHER_SPECIALIZATION_IDX) const
-    bool kEnableFeather = true;
-layout(constant_id = EVEN_ODD_SPECIALIZATION_IDX) const
-    bool kEnableEvenOdd = true;
-layout(constant_id = NESTED_CLIPPING_SPECIALIZATION_IDX) const
-    bool kEnableNestedClipping = true;
-layout(constant_id = HSL_BLEND_MODES_SPECIALIZATION_IDX) const
-    bool kEnableHSLBlendModes = true;
-layout(constant_id = DITHER_SPECIALIZATION_IDX) const bool kEnableDither = true;
-layout(constant_id = CLOCKWISE_FILL_SPECIALIZATION_IDX) const
-    bool kClockwiseFill = true;
-layout(constant_id = BORROWED_COVERAGE_PASS_SPECIALIZATION_IDX) const
-    bool kBorrowedCoveragePrepass = true;
-layout(constant_id = VULKAN_VENDOR_ID_SPECIALIZATION_IDX) const uint
-    kVulkanVendorID = 0;
-
-#define EXPORTED_ENABLE_CLIPPING  kEnableClipping
-#define EXPORTED_ENABLE_CLIP_RECT  kEnableClipRect
-#define EXPORTED_ENABLE_ADVANCED_BLEND  kEnableAdvancedBlend
-#define EXPORTED_ENABLE_FEATHER  kEnableFeather
-#define EXPORTED_ENABLE_EVEN_ODD  kEnableEvenOdd
-#define EXPORTED_ENABLE_NESTED_CLIPPING  kEnableNestedClipping
-#define EXPORTED_ENABLE_HSL_BLEND_MODES  kEnableHSLBlendModes
-#define EXPORTED_ENABLE_DITHER  kEnableDither
-#define EXPORTED_CLOCKWISE_FILL  kClockwiseFill
-#define EXPORTED_BORROWED_COVERAGE_PASS  kBorrowedCoveragePrepass
-#define EXPORTED_VULKAN_VENDOR_ID  kVulkanVendorID
-
-#else
-
-// Specialization constants aren't supported; just compile an ubershader.
-#define EXPORTED_ENABLE_CLIPPING  true
-#define EXPORTED_ENABLE_CLIP_RECT  true
-#define EXPORTED_ENABLE_ADVANCED_BLEND  true
-#define EXPORTED_ENABLE_FEATHER  true
-#define EXPORTED_ENABLE_EVEN_ODD  true
-#define EXPORTED_ENABLE_NESTED_CLIPPING  true
-#define EXPORTED_ENABLE_HSL_BLEND_MODES  true
-#define EXPORTED_ENABLE_DITHER  true
-#define EXPORTED_CLOCKWISE_FILL  true
-#define EXPORTED_BORROWED_COVERAGE_PASS  true
-#define EXPORTED_VULKAN_VENDOR_ID  0
-
-#endif
+const char specialization[] = R"===(layout(constant_id=Cf)const bool Lg=true;layout(constant_id=Df)const bool Mg=true;layout(constant_id=Ef)const bool Ng=true;layout(constant_id=Ff)const bool Og=true;layout(constant_id=Gf)const bool Pg=true;layout(constant_id=Hf)const bool Qg=true;layout(constant_id=If)const bool Rg=true;layout(constant_id=Jf)const bool Sg=true;layout(constant_id=Kf)const bool Tg=true;layout(constant_id=Mf)const bool Ug=false;layout(constant_id=Lf)const bool Vg=false;layout(constant_id=Pf)const bool Wg=false;layout(constant_id=Nf)const bool Xg=false;layout(constant_id=Of)const bool Yg=false;
+#define O Lg
+#define AB Mg
+#define GB Ng
+#define HB Og
+#define PC Pg
+#define RC Qg
+#define XB Rg
+#define JB Sg
+#define UD Tg
+#define WB Ug
+#define YC Vg
+#define WC Wg
+#define ED Xg
+#define FD Yg
 )===";
 } // namespace glsl
 } // namespace gpu

@@ -5,238 +5,84 @@
 namespace rive {
 namespace gpu {
 namespace glsl {
-const char draw_raster_order_path_frag[] = R"===(/*
- * Copyright 2022 Rive
- */
-
-#ifdef EXPORTED_FRAGMENT
-
-PLS_BLOCK_BEGIN
-PLS_DECL4F(COLOR_PLANE_IDX, colorBuffer);
-PLS_DECLUI(CLIP_PLANE_IDX, clipBuffer);
-PLS_DECL4F(SCRATCH_COLOR_PLANE_IDX, scratchColorBuffer);
-PLS_DECLUI(COVERAGE_PLANE_IDX, coverageCountBuffer);
-PLS_BLOCK_END
-
-PLS_MAIN(EXPORTED_drawFragmentMain)
+const char draw_raster_order_path_frag[] = R"===(#ifdef FB
+J1 r0(Q2,g0);k1(R2,d0);r0(d6,g4);k1(F6,H7);K1 m1(IB){B(i1,g);
+#ifdef DB
+B(j1,d);
+#else
+B(I,z2);
+#endif
+B(z0,d);
+#ifdef O
+B(S1,D);
+#endif
+#ifdef AB
+B(N0,g);
+#endif
+#ifdef GB
+B(Z1,d);
+#endif
+#if!defined(DB)
+v2;
+#endif
+D N4=unpackHalf2x16(d1(H7));d h9=N4.y;d m0=h9==z0?N4.x:G0(.0);
+#ifdef DB
+m0+=j1;Y1(H7);
+#else
+m0=uh(m0,I g1);f1(H7,packHalf2x16(A2(m0,z0)));
+#endif
+d n;
+#ifdef UD
+if(UD){n=W9(m0,G0(.0),G0(1.));}else
+#endif
+{n=abs(m0);
+#ifdef PC
+if(PC&&z0<.0){n=1.-G0(abs(fract(n*.5)*2.+-1.));}
+#endif
+n=min(n,G0(1.));}
+#ifdef O
+if(O&&S1.x<.0){d V0=-S1.x;
+#ifdef RC
+if(RC){d F5=S1.y;if(F5!=.0){D O0=unpackHalf2x16(d1(d0));d A6=O0.y;d k4;if(A6!=V0){k4=A6==F5?O0.x:.0;
+#ifndef DB
+v0(g4,B0(k4,.0,.0,.0));
+#endif
+}else{k4=H0(g4).x;
+#ifndef DB
+r2(g4);
+#endif
+}n=min(n,k4);}}
+#endif
+f1(d0,packHalf2x16(A2(n,V0)));r2(g0);}else
+#endif
 {
-    VARYING_UNPACK(v_paint, float4);
-
-#ifdef EXPORTED_DRAW_INTERIOR_TRIANGLES
-    VARYING_UNPACK(v_windingWeight, half);
-#else
-    VARYING_UNPACK(v_coverages, COVERAGE_TYPE);
-#endif //@DRAW_INTERIOR_TRIANGLES
-    VARYING_UNPACK(v_pathID, half);
-
-#ifdef EXPORTED_ENABLE_CLIPPING
-    VARYING_UNPACK(v_clipIDs, half2);
+#ifdef O
+if(O){d V0=S1.x;if(V0!=.0){D O0=unpackHalf2x16(d1(d0));d A6=O0.y;n=(A6==V0)?min(O0.x,n):G0(.0);}}
 #endif
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-    VARYING_UNPACK(v_clipRect, float4);
+#ifdef AB
+if(AB){d U4=g3(Y4(N0));n=clamp(U4,G0(.0),n);}
 #endif
-#ifdef EXPORTED_ENABLE_ADVANCED_BLEND
-    VARYING_UNPACK(v_blendMode, half);
+i j=M7(i1,n S2);i L1;if(h9!=z0){L1=H0(g0);
+#ifndef DB
+v0(g4,L1);
 #endif
-
-#if !defined(EXPORTED_DRAW_INTERIOR_TRIANGLES)
-    // Interior triangles don't overlap, so don't need raster ordering.
-    PLS_INTERLOCK_BEGIN;
+}else{L1=H0(g4);
+#ifndef DB
+r2(g4);
 #endif
-
-    half2 coverageData = unpackHalf2x16(PLS_LOADUI(coverageCountBuffer));
-    half coverageBufferID = coverageData.y;
-    half coverageCount =
-        coverageBufferID == v_pathID ? coverageData.x : make_half(.0);
-
-#ifdef EXPORTED_DRAW_INTERIOR_TRIANGLES
-    coverageCount += v_windingWeight;
-    // Preserve the coverage buffer even though we don't use it, so it doesn't
-    // get overwritten in a way that would corrupt a future draw (e.g., by
-    // accidentally writing the next path's id with a bogus coverage.)
-    PLS_PRESERVE_UI(coverageCountBuffer);
-#else
-    coverageCount =
-        apply_frag_coverage(coverageCount, v_coverages TEXTURE_CONTEXT_FORWARD);
-    // Save the updated coverage.
-    PLS_STOREUI(coverageCountBuffer,
-                packHalf2x16(make_half2(coverageCount, v_pathID)));
-#endif // !@DRAW_INTERIOR_TRIANGLES
-
-    // Convert coverageCount to coverage.
-    half coverage;
-#ifdef EXPORTED_CLOCKWISE_FILL
-    if (EXPORTED_CLOCKWISE_FILL)
-    {
-        coverage =
-            safe_clamp_for_mali(coverageCount, make_half(.0), make_half(1.));
-    }
-    else
-#endif // CLOCKWISE_FILL
-    {
-        coverage = abs(coverageCount);
-#ifdef EXPORTED_ENABLE_EVEN_ODD
-        if (EXPORTED_ENABLE_EVEN_ODD && v_pathID < .0 /*even-odd*/)
-        {
-            coverage = 1. - make_half(abs(fract(coverage * .5) * 2. + -1.));
-        }
-#endif
-        // This also caps stroke coverage, which can be >1.
-        coverage = min(coverage, make_half(1.));
-    }
-
-#ifdef EXPORTED_ENABLE_CLIPPING
-    if (EXPORTED_ENABLE_CLIPPING && v_clipIDs.x < .0) // Update the clip buffer.
-    {
-        half clipID = -v_clipIDs.x;
-#ifdef EXPORTED_ENABLE_NESTED_CLIPPING
-        if (EXPORTED_ENABLE_NESTED_CLIPPING)
-        {
-            half outerClipID = v_clipIDs.y;
-            if (outerClipID != .0)
-            {
-                // This is a nested clip. Intersect coverage with the enclosing
-                // clip (outerClipID).
-                half2 clipData = unpackHalf2x16(PLS_LOADUI(clipBuffer));
-                half clipContentID = clipData.y;
-                half outerClipCoverage;
-                if (clipContentID != clipID)
-                {
-                    // First hit: either clipBuffer contains outerClipCoverage,
-                    // or this pixel is not inside the outer clip and
-                    // outerClipCoverage is zero.
-                    outerClipCoverage =
-                        clipContentID == outerClipID ? clipData.x : .0;
-#ifndef EXPORTED_DRAW_INTERIOR_TRIANGLES
-                    // Stash outerClipCoverage before overwriting clipBuffer, in
-                    // case we hit this pixel again and need it. (Not necessary
-                    // when drawing interior triangles because they always go
-                    // last and don't overlap.)
-                    PLS_STORE4F(scratchColorBuffer,
-                                make_half4(outerClipCoverage, .0, .0, .0));
-#endif
-                }
-                else
-                {
-                    // Subsequent hit: outerClipCoverage is stashed in
-                    // scratchColorBuffer.
-                    outerClipCoverage = PLS_LOAD4F(scratchColorBuffer).x;
-#ifndef EXPORTED_DRAW_INTERIOR_TRIANGLES
-                    // Since interior triangles are always last, there's no need
-                    // to preserve this value.
-                    PLS_PRESERVE_4F(scratchColorBuffer);
-#endif
-                }
-                coverage = min(coverage, outerClipCoverage);
-            }
-        }
-#endif // @ENABLE_NESTED_CLIPPING
-        PLS_STOREUI(clipBuffer, packHalf2x16(make_half2(coverage, clipID)));
-        PLS_PRESERVE_4F(colorBuffer);
-    }
-    else // Render to the main framebuffer.
-#endif   // @ENABLE_CLIPPING
-    {
-#ifdef EXPORTED_ENABLE_CLIPPING
-        if (EXPORTED_ENABLE_CLIPPING)
-        {
-            // Apply the clip.
-            half clipID = v_clipIDs.x;
-            if (clipID != .0)
-            {
-                // Clip IDs are not necessarily drawn in monotonically
-                // increasing order, so always check exact equality of the
-                // clipID.
-                half2 clipData = unpackHalf2x16(PLS_LOADUI(clipBuffer));
-                half clipContentID = clipData.y;
-                coverage = (clipContentID == clipID) ? min(clipData.x, coverage)
-                                                     : make_half(.0);
-            }
-        }
-#endif
-#ifdef EXPORTED_ENABLE_CLIP_RECT
-        if (EXPORTED_ENABLE_CLIP_RECT)
-        {
-            half clipRectCoverage =
-                min_component(cast_float4_to_half4(v_clipRect));
-            coverage = clamp(clipRectCoverage, make_half(.0), coverage);
-        }
-#endif // ENABLE_CLIP_RECT
-
-        half4 color =
-            find_paint_color(v_paint, coverage FRAGMENT_CONTEXT_UNPACK);
-
-        half4 dstColorPremul;
-        if (coverageBufferID != v_pathID)
-        {
-            // This is the first fragment from pathID to touch this pixel.
-            dstColorPremul = PLS_LOAD4F(colorBuffer);
-#ifndef EXPORTED_DRAW_INTERIOR_TRIANGLES
-            // We don't need to store coverage when drawing interior triangles
-            // because they always go last and don't overlap, so every fragment
-            // is the final one in the path.
-            PLS_STORE4F(scratchColorBuffer, dstColorPremul);
-#endif
-        }
-        else
-        {
-            dstColorPremul = PLS_LOAD4F(scratchColorBuffer);
-#ifndef EXPORTED_DRAW_INTERIOR_TRIANGLES
-            // Since interior triangles are always last, there's no need to
-            // preserve this value.
-            PLS_PRESERVE_4F(scratchColorBuffer);
-#endif
-        }
-
-        // Blend with the framebuffer color.
-#ifdef EXPORTED_ENABLE_ADVANCED_BLEND
-        if (EXPORTED_ENABLE_ADVANCED_BLEND)
-        {
-            // GENERATE_PREMULTIPLIED_PAINT_COLORS is false in this case because
-            // advanced blend needs unmultiplied colors.
-            if (v_blendMode != cast_uint_to_half(BLEND_SRC_OVER))
-            {
-                color.xyz =
-                    advanced_color_blend(color.xyz,
-                                         dstColorPremul,
-                                         cast_half_to_ushort(v_blendMode));
-            }
-            // Premultiply alpha now.
-            color.xyz *= color.w;
-        }
-#endif
-
-        // Certain platforms give us less control of the format of what we are
-        // rendering too. Specifically, we are auto converted from linear ->
-        // sRGB on render target writes in unreal. In those cases we made need
-        // to end up in linear color space
-#ifdef EXPORTED_NEEDS_GAMMA_CORRECTION
-        if (EXPORTED_NEEDS_GAMMA_CORRECTION)
-        {
-            color = gamma_to_linear(color);
-        }
-#endif
-
-        color += dstColorPremul * (1. - color.w);
-
-        color.xyz = add_dither(color.xyz,
-                               _fragCoord.xy,
-                               uniforms.ditherScale,
-                               uniforms.ditherBias);
-
-        PLS_STORE4F(colorBuffer, color);
-        PLS_PRESERVE_UI(clipBuffer);
-    }
-
-#if !defined(EXPORTED_DRAW_INTERIOR_TRIANGLES)
-    // Interior triangles don't overlap, so don't need raster ordering.
-    PLS_INTERLOCK_END;
-#endif
-
-    EMIT_PLS;
 }
-
-#endif // FRAGMENT
+#ifdef GB
+if(GB){if(Z1!=V5(M5)){j.xyz=Q4(j.xyz,L1,W5(Z1));}j.xyz*=j.w;}
+#endif
+#ifdef UB
+if(UB){j=k3(j);}
+#endif
+j+=L1*(1.-j.w);j.xyz=Q3(j.xyz,S.xy,k.y3,k.z3);v0(g0,j);Y1(d0);}
+#if!defined(DB)
+w2;
+#endif
+U1;}
+#endif
 )===";
 } // namespace glsl
 } // namespace gpu
